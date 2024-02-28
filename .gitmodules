@@ -1,0 +1,3 @@
+[submodule "bevy-enum-components"]
+	path = bevy-enum-components
+	url = https://github.com/Waridley/bevy-enum-components.git

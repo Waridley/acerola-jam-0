@@ -1,0 +1,11 @@
+[package]
+name = "sonday-acerola-jam-0-web"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+debugging = ["game_lib/debugging"]
+
+[dependencies]
+game_lib = { package = "sonday-acerola-jam-0", path = "../../" }
+bevy = { workspace = true }
