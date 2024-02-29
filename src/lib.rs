@@ -4,6 +4,7 @@ use time_graph::TimeGraphPlugin;
 
 pub mod data;
 pub mod time_graph;
+pub mod happens;
 
 pub struct GamePlugin {
 	pub asset_dir: &'static str,

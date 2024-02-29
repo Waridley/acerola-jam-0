@@ -1,10 +1,17 @@
 (
     moments: {
-        "4s": (happenings: {
-            "sonday_acerola_jam_0::data::tl::Print": (
-                msg: "Hello!",
-            ),
-        }),
-        "3m": (happenings: {}),
+        "4s": (
+            label: "Print Hello",
+            desc: "Prints 'Hello!' after 4 seconds",
+            happenings: {
+                "happens::Print": (
+                    msg: "Hello!",
+                ),
+            },
+        ),
+        "1m": (
+            label: "Minute",
+            happenings: {},
+        ),
     }
 )

@@ -22,7 +22,9 @@ pub fn step_loop(
 	for (_, tl) in timelines.iter() {
 		for (lt, mom) in tl.moments.iter() {
 			if prev < *lt && tloop.curr > *lt {
+				debug!(target: "time_graph", desc = mom.desc, "{}@{lt}", mom.label.as_deref().unwrap_or(""));
 				for happen in mom.happenings.iter() {
+					trace!(target: "time_graph", "{happen:?}");
 					happen.apply(cmds.reborrow());
 				}
 			}
@@ -42,7 +44,7 @@ pub fn print_timelines(
 			| AssetEvent::Unused { id }
 			| AssetEvent::LoadedWithDependencies { id } => {
 				let tl = timelines.get(*id).unwrap();
-				info!("{ev:?}: {tl:?}");
+				debug!("{ev:?}: {tl:?}");
 			}
 		}
 	}

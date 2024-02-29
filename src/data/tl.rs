@@ -103,8 +103,10 @@ pub struct Timeline {
 	pub moments: BTreeMap<LoopTime, Moment>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Moment {
+	pub label: Option<String>,
+	pub desc: Option<String>,
 	pub happenings: Vec<Box<dyn Do>>,
 }
 
@@ -136,15 +138,17 @@ pub trait Do: Debug + Send + Sync {
 	fn apply(&self, cmds: Commands);
 }
 
+/// A dummy happening for debugging time graph code
 #[derive(Reflect, Debug, Clone, Serialize, Deserialize)]
 #[reflect(Do, Serialize, Deserialize)]
+#[type_path = "happens"]
 pub struct Print {
 	pub msg: Cow<'static, str>,
 }
 
 impl Do for Print {
 	fn apply(&self, _cmds: Commands) {
-		info!("{}", &self.msg)
+		info!(target: "happens", "{}", &self.msg)
 	}
 }
 
@@ -302,6 +306,8 @@ impl<'a, 'de> DeserializeSeed<'de> for MomentDeserializer<'a> {
 #[derive(Deserialize)]
 #[serde(field_identifier, rename_all = "lowercase")]
 pub enum MomentField {
+	Label,
+	Desc,
 	Happenings,
 }
 
@@ -320,25 +326,34 @@ impl<'a, 'de> Visitor<'de> for MomentVisitor<'a> {
 	where
 		A: MapAccess<'de>,
 	{
-		let Some(MomentField::Happenings) = map.next_key()? else {
-			return Err(Error::missing_field("happenings"));
-		};
-
-		let happenings = map.next_value_seed(SceneMapDeserializer {
-			registry: self.registry,
-		})?;
-
-		let happenings = happenings
-			.into_iter()
-			.map(|entry| {
-				let type_info = entry.get_represented_type_info().unwrap();
-				let registration = self.registry.get(type_info.type_id()).unwrap();
-				let reflect_do: &ReflectDo = registration.data::<ReflectDo>().unwrap();
-				reflect_do.get_boxed(entry).unwrap()
-			})
-			.collect();
-
-		Ok(Moment { happenings })
+		let mut label = None;
+		let mut desc = None;
+		let mut happenings = None;
+		
+		while let Some(key) = map.next_key()? {
+			match key {
+				MomentField::Label => label = Some(map.next_value()?),
+				MomentField::Desc => desc = Some(map.next_value()?),
+				MomentField::Happenings => happenings = Some(map
+					.next_value_seed(SceneMapDeserializer {
+						registry: self.registry,
+					})?
+					.into_iter()
+					.map(|entry| {
+						let type_info = entry.get_represented_type_info().unwrap();
+						let registration = self.registry.get(type_info.type_id()).unwrap();
+						let reflect_do: &ReflectDo = registration.data::<ReflectDo>().unwrap();
+						reflect_do.get_boxed(entry).unwrap()
+					})
+					.collect()
+				),
+			}
+		}
+		Ok(Moment {
+			label,
+			desc,
+			happenings: happenings.unwrap_or_default(),
+		})
 	}
 }
 
