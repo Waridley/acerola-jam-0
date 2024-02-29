@@ -3170,6 +3170,7 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "leafwing-input-manager",
+ "ron",
  "sond-bevy-enum-components",
 ]
 

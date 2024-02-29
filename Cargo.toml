@@ -53,6 +53,7 @@ features = [
 bevy = { workspace = true }
 sond-bevy-enum-components = { path = "bevy-enum-components" }
 leafwing-input-manager = "0.13.3"
+ron = "0.8.1"
 
 [profile.dev]
 opt-level = 1

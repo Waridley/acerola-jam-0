@@ -1,6 +1,6 @@
 #![cfg_attr(
-all(not(debug_assertions), target_os = "windows"),
-windows_subsystem = "windows"
+	all(not(debug_assertions), target_os = "windows"),
+	windows_subsystem = "windows"
 )]
 
 #[allow(unused_imports, clippy::single_component_path_imports)]
@@ -11,10 +11,10 @@ use bevy::prelude::*;
 use game_lib::GamePlugin;
 
 fn main() {
-    App::new()
-      .add_plugins(GamePlugin {
-          asset_dir: concat!(env!("PWD"), "/assets/"),
-          imported_asset_dir: concat!(env!("PWD"), "/imported_assets/Default"),
-      })
-      .run()
+	App::new()
+		.add_plugins(GamePlugin {
+			asset_dir: concat!(env!("PWD"), "/assets/"),
+			imported_asset_dir: concat!(env!("PWD"), "/imported_assets/Default"),
+		})
+		.run()
 }
