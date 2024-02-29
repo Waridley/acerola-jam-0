@@ -24,3 +24,6 @@ test:
 
 headless-test:
 	cargo test --workspace --features="testing"
+
+fmt:
+	cargo fmt --all -- --config imports_granularity="Crate"

@@ -1,11 +1,4 @@
 (
-    resources: {
-        "sonday_acerola_jam_0::data::tl::Timelines": ([
-            (moments: {
-                (secs: 4, nanos: 0): (),
-                (secs: 47, nanos: 0): (),
-            }),
-        ]),
-    },
+    resources: {},
     entities: {}
 )
