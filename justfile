@@ -7,14 +7,17 @@ release:
 release-debug:
 	cargo run --package="sonday-acerola-jam-0-desktop" --profile="release-debug" --features="debugging"
 
+serve:
+	trunk serve --open --public-url="/" --features="debugging"
+
 web:
-	trunk serve --public-url="/" --open --features="debugging"
+	trunk build --public-url="/" --features="debugging"
 
 web-release:
-	trunk serve --public-url="/" --open --release
+	trunk build --public-url="/" --release
 
 web-release-debug:
-	trunk serve --public-url="/" --open --profile="release-debug" --features="debugging"
+	trunk build --public-url="/" --profile="release-debug" --features="debugging"
 
 test:
 	cargo test --workspace --features="vis_test"

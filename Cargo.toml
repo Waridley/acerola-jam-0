@@ -52,6 +52,7 @@ features = [
 [dependencies]
 bevy = { workspace = true }
 sond-bevy-enum-components = { path = "bevy-enum-components" }
+leafwing-input-manager = "0.13.3"
 
 [profile.dev]
 opt-level = 1

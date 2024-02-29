@@ -12,6 +12,14 @@ impl Plugin for GamePlugin {
 			processed_file_path: self.imported_asset_dir.to_owned(),
 			mode: AssetMode::Processed,
 			..default()
+		}).set(WindowPlugin {
+			primary_window: Some(Window {
+				title: "Sonday Studios -- Acerola Jam #0".to_owned(),
+				resizable: true,
+				canvas: Some("#game_canvas".to_owned()),
+				..default()
+			}),
+			..default()
 		})).add_systems(Startup, hello_world);
 	}
 }

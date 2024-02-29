@@ -4,3 +4,6 @@ public_url = "./"
 
 [watch]
 watch = ["src", "imported_assets", "Cargo.toml", "Cargo.lock", "launchers/web", "index.html"]
+
+[serve]
+address = "0.0.0.0"

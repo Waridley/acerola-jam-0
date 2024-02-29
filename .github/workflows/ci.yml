@@ -1,0 +1,47 @@
+jobs:
+  # Run cargo clippy -- -D warnings
+  clippy_check:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install dependencies
+        run: |
+          echo "${{ github.ref_name }}"
+          export DEBIAN_FRONTED=noninteractive
+          sudo apt-get -qq update
+          sudo apt-get install -y libxdo-dev libasound2-dev libudev-dev pkg-config
+
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components:
+            clippy,
+
+      - name: Run clippy
+        uses: actions-rs/cargo@v1.0.1
+        with:
+          args: -- -D warnings
+          command: clippy
+
+
+name: CI
+on:
+  pull_request:
+    branches:
+      - main
+      - release
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - ".github/**"
+      - "README.md"
+    tags-ignore:
+      - "v**"
+  workflow_call:
