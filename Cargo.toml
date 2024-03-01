@@ -9,7 +9,7 @@ members = ["launchers/*"]
 exclude = ["bevy-enum-components"]
 
 [features]
-debugging = []
+debugging = ["bevy_xpbd_3d/debug-plugin"]
 testing = []
 vis_test = ["testing", "render"]
 render = ["bevy/bevy_render", "bevy/bevy_winit"]

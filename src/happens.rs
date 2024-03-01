@@ -26,13 +26,14 @@ pub struct SpawnPortalTo {
 }
 
 #[derive(Component, Debug, Copy, Clone, Reflect, Serialize, Deserialize)]
+#[serde(default)]
 pub struct ReflectBall {
 	pub radius: f32,
 }
 
 impl Default for ReflectBall {
 	fn default() -> Self {
-		Self { radius: 0.5 }
+		Self { radius: 30.0 }
 	}
 }
 
@@ -49,7 +50,7 @@ impl Command for SpawnPortalTo {
 			.t_for_t_path(self.target.clone())
 		else {
 			error!("Timeline {} is not loaded", &self.target.0);
-			return
+			return;
 		};
 		world.spawn((
 			Collider::from(SharedShape::from(self.sensor)),
