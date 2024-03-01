@@ -3,8 +3,8 @@ use data::DataPlugin;
 use time_graph::TimeGraphPlugin;
 
 pub mod data;
-pub mod time_graph;
 pub mod happens;
+pub mod time_graph;
 
 pub struct GamePlugin {
 	pub asset_dir: &'static str,

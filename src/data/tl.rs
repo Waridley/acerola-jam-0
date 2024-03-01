@@ -1,5 +1,5 @@
 use bevy::{
-	asset::{io::Reader, AssetLoader, AsyncReadExt, BoxedFuture, LoadContext},
+	asset::{io::Reader, AssetLoader, AssetPath, AsyncReadExt, BoxedFuture, LoadContext},
 	prelude::*,
 	reflect::{TypeRegistry, TypeRegistryArc},
 	scene::{serde::SceneMapDeserializer, SceneLoaderError},
@@ -24,7 +24,10 @@ impl Plugin for TimeDataPlugin {
 	fn build(&self, app: &mut App) {
 		app.init_resource::<TimeLoop>()
 			.init_asset::<Timeline>()
-			.register_type::<Print>();
+			.register_type::<Print>()
+			.register_type::<T>()
+			.register_type::<(AssetPath<'static>, T)>()
+			.register_type::<Portal>();
 	}
 
 	fn finish(&self, app: &mut App) {
@@ -35,12 +38,14 @@ impl Plugin for TimeDataPlugin {
 
 		let assets = app.world.resource::<AssetServer>();
 
-		let tl = assets.load("tl/main_timeline.tl.ron");
-		app.insert_resource(MainTimeline(tl));
+		let tl = assets.load("tl/main.tl.ron");
+		app.insert_resource(LoadedTimelines(vec![tl]));
 	}
 }
 
-/// Seconds since the beginning of the loop
+/// Duration since the beginning of the loop
+///
+/// Serializes in a human-readable format using [humantime]
 #[derive(
 	Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Deref, DerefMut, Reflect,
 )]
@@ -110,6 +115,7 @@ pub struct Moment {
 	pub happenings: Vec<Box<dyn Do>>,
 }
 
+#[derive(Reflect, Copy, Clone, Debug, Default)]
 pub struct T {
 	pub timeline: AssetId<Timeline>,
 	pub time: LoopTime,
@@ -148,7 +154,7 @@ pub struct Print {
 
 impl Do for Print {
 	fn apply(&self, _cmds: Commands) {
-		info!(target: "happens", "{}", &self.msg)
+		info!(target: "happens::Print", "{}", &self.msg)
 	}
 }
 
@@ -329,24 +335,26 @@ impl<'a, 'de> Visitor<'de> for MomentVisitor<'a> {
 		let mut label = None;
 		let mut desc = None;
 		let mut happenings = None;
-		
+
 		while let Some(key) = map.next_key()? {
 			match key {
 				MomentField::Label => label = Some(map.next_value()?),
 				MomentField::Desc => desc = Some(map.next_value()?),
-				MomentField::Happenings => happenings = Some(map
-					.next_value_seed(SceneMapDeserializer {
-						registry: self.registry,
-					})?
-					.into_iter()
-					.map(|entry| {
-						let type_info = entry.get_represented_type_info().unwrap();
-						let registration = self.registry.get(type_info.type_id()).unwrap();
-						let reflect_do: &ReflectDo = registration.data::<ReflectDo>().unwrap();
-						reflect_do.get_boxed(entry).unwrap()
-					})
-					.collect()
-				),
+				MomentField::Happenings => {
+					happenings = Some(
+						map.next_value_seed(SceneMapDeserializer {
+							registry: self.registry,
+						})?
+						.into_iter()
+						.map(|entry| {
+							let type_info = entry.get_represented_type_info().unwrap();
+							let registration = self.registry.get(type_info.type_id()).unwrap();
+							let reflect_do: &ReflectDo = registration.data::<ReflectDo>().unwrap();
+							reflect_do.get_boxed(entry).unwrap()
+						})
+						.collect(),
+					)
+				}
 			}
 		}
 		Ok(Moment {
@@ -362,5 +370,37 @@ pub struct TimeLoop {
 	pub curr: LoopTime,
 }
 
-#[derive(Resource)]
-pub struct MainTimeline(pub Handle<Timeline>);
+/// Mainly keeps timeline strong handles alive.
+#[derive(Resource, Deref, DerefMut)]
+pub struct LoadedTimelines(pub Vec<Handle<Timeline>>);
+
+/// Static, \[de]serializable time portal definition
+#[derive(Reflect, Clone, Debug, Serialize, Deserialize)]
+#[reflect(Serialize, Deserialize)]
+pub struct Portal {
+	pub from: (AssetPath<'static>, LoopTime),
+	pub to: (AssetPath<'static>, LoopTime),
+}
+
+impl Portal {
+	pub fn get_ref(&self, assets: &AssetServer) -> PortalRef {
+		let from_tl = assets.get_path_id(self.from.0.clone()).unwrap().typed();
+		let to_tl = assets.get_path_id(self.to.0.clone()).unwrap().typed();
+		PortalRef {
+			from: T {
+				timeline: from_tl,
+				time: self.from.1,
+			},
+			to: T {
+				timeline: to_tl,
+				time: self.to.1,
+			},
+		}
+	}
+}
+
+/// Runtime portal reference.
+pub struct PortalRef {
+	pub from: T,
+	pub to: T,
+}

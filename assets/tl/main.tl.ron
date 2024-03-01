@@ -1,0 +1,29 @@
+(
+	moments: {
+		"4s": (
+			label: "print_hello",
+			desc: "Prints 'Hello!' after 4 seconds",
+			happenings: {
+				"happens::Print": (
+					msg: "Hello!",
+				),
+			},
+		),
+		"20s": (
+			label: "1_score_seconds",
+			happenings: {
+				"happens::Print": (
+					msg: "20 seconds have passed",
+				),
+			},
+		),
+		"1m": (
+			label: "minute",
+			happenings: {
+				"happens::Print": (
+					msg: "A minute has passed",
+				),
+			},
+		),
+	}
+)
