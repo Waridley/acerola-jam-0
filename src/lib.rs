@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use data::DataPlugin;
 use time_graph::TimeGraphPlugin;
+use crate::happens::HappeningsPlugin;
 
 pub mod data;
 pub mod happens;
@@ -31,6 +32,7 @@ impl Plugin for GamePlugin {
 					..default()
 				}),
 			DataPlugin,
+			HappeningsPlugin,
 			TimeGraphPlugin,
 		))
 		.add_systems(Startup, setup);

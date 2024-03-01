@@ -8,7 +8,15 @@
 					msg: "Eureka!",
 				),
 			}
+		),
+		"55s": (
+			happenings: {
+				"happens::SpawnPortalTo": (
+					target: ("tl/main.tl.ron", "7s"),
+					sensor: ( radius: 0.5),
+				)
+			}
 		)
 	},
-	merge_into: ("tl/main.tl.ron", "50s"),
+	merge_into: ("tl/main.tl.ron", "1m30s"),
 )

@@ -17,6 +17,8 @@ use std::{
 	str::FromStr,
 	time::Duration,
 };
+use bevy::ecs::system::{Command, EntityCommand};
+use bevy_xpbd_3d::prelude::{Collider, RigidBody, Sensor};
 
 pub struct TimeDataPlugin;
 
@@ -454,5 +456,19 @@ impl AssetServerExt for AssetServer {
 			from: self.t_path_for_t(portal.from)?,
 			to: self.t_path_for_t(portal.to)?,
 		})
+	}
+}
+
+#[derive(Component, Debug, Reflect)]
+pub struct PortalTo(pub T);
+
+#[derive(Component, Debug, Reflect, Serialize, Deserialize)]
+#[reflect(Serialize, Deserialize)]
+pub struct InsertPortalTo(pub TPath);
+
+impl EntityCommand for InsertPortalTo {
+	fn apply(self, id: Entity, world: &mut World) {
+		let t = world.resource::<AssetServer>().t_for_t_path(self.0).unwrap();
+		world.entity_mut(id).insert(PortalTo(t));
 	}
 }
