@@ -1,0 +1,14 @@
+(
+	branch_from: ("tl/main.tl.ron", "15s"),
+	moments: {
+		"42s": (
+			label: "answer_life_universe_and_everything",
+			happenings: {
+				"happens::Print": (
+					msg: "Eureka!",
+				),
+			}
+		)
+	},
+	merge_into: ("tl/main.tl.ron", "50s"),
+)

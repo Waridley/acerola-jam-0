@@ -27,19 +27,22 @@ impl Plugin for TimeDataPlugin {
 			.register_type::<Print>()
 			.register_type::<T>()
 			.register_type::<(AssetPath<'static>, T)>()
-			.register_type::<Portal>();
+			.register_type::<PortalPath>();
 	}
 
 	fn finish(&self, app: &mut App) {
 		let registry = app.world.resource::<AppTypeRegistry>();
+		let asset_server = app.world.resource::<AssetServer>();
 		app.register_asset_loader(TimelineLoader {
 			registry: registry.0.clone(),
+			asset_server: asset_server.clone(),
 		});
 
 		let assets = app.world.resource::<AssetServer>();
 
-		let tl = assets.load("tl/main.tl.ron");
-		app.insert_resource(LoadedTimelines(vec![tl]));
+		let main = assets.load("tl/main.tl.ron");
+		let test_branch = assets.load("tl/test_branch.tl.ron");
+		app.insert_resource(LoadedTimelines(vec![main, test_branch]));
 	}
 }
 
@@ -104,8 +107,10 @@ impl From<LoopTime> for Duration {
 
 #[derive(Asset, TypePath, Debug, Default, Deref, DerefMut)]
 pub struct Timeline {
+	pub branch_from: Option<T>,
 	#[deref]
 	pub moments: BTreeMap<LoopTime, Moment>,
+	pub merge_into: Option<T>,
 }
 
 #[derive(Debug, Default)]
@@ -116,25 +121,32 @@ pub struct Moment {
 }
 
 #[derive(Reflect, Copy, Clone, Debug, Default)]
-pub struct T {
-	pub timeline: AssetId<Timeline>,
-	pub time: LoopTime,
+pub struct T(pub AssetId<Timeline>, pub LoopTime);
+
+#[derive(Reflect, Clone, Debug, Serialize, Deserialize)]
+#[reflect(Serialize, Deserialize)]
+pub struct TPath(pub AssetPath<'static>, pub LoopTime);
+
+impl Default for TPath {
+	fn default() -> Self {
+		Self("tl/main.tl.ron".into(), default())
+	}
 }
 
 impl Index<T> for Assets<Timeline> {
 	type Output = Moment;
 
 	fn index(&self, index: T) -> &Self::Output {
-		&self.get(index.timeline).unwrap().moments[&index.time]
+		&self.get(index.0).unwrap().moments[&index.1]
 	}
 }
 
 impl IndexMut<T> for Assets<Timeline> {
 	fn index_mut(&mut self, index: T) -> &mut Self::Output {
-		self.get_mut(index.timeline)
+		self.get_mut(index.0)
 			.unwrap()
 			.moments
-			.get_mut(&index.time)
+			.get_mut(&index.1)
 			.unwrap()
 	}
 }
@@ -160,6 +172,7 @@ impl Do for Print {
 
 pub struct TimelineLoader {
 	pub registry: TypeRegistryArc,
+	pub asset_server: AssetServer,
 }
 
 impl AssetLoader for TimelineLoader {
@@ -179,6 +192,7 @@ impl AssetLoader for TimelineLoader {
 			let mut ron_de = ron::de::Deserializer::from_bytes(&bytes)?;
 			let tl_de = TimelineDeserializer {
 				registry: &self.registry.read(),
+				asset_server: &self.asset_server,
 			};
 			Ok(tl_de
 				.deserialize(&mut ron_de)
@@ -192,13 +206,16 @@ impl AssetLoader for TimelineLoader {
 }
 
 #[derive(Deserialize)]
-#[serde(field_identifier, rename_all = "lowercase")]
+#[serde(field_identifier, rename_all = "snake_case")]
 pub enum TimelineField {
+	BranchFrom,
 	Moments,
+	MergeInto,
 }
 
-pub struct TimelineDeserializer<'de> {
-	registry: &'de TypeRegistry,
+pub struct TimelineDeserializer<'a> {
+	registry: &'a TypeRegistry,
+	asset_server: &'a AssetServer,
 }
 
 impl<'de> DeserializeSeed<'de> for TimelineDeserializer<'de> {
@@ -213,6 +230,7 @@ impl<'de> DeserializeSeed<'de> for TimelineDeserializer<'de> {
 			&["moments"],
 			TimelineVisitor {
 				registry: self.registry,
+				asset_server: self.asset_server,
 			},
 		)
 	}
@@ -220,6 +238,7 @@ impl<'de> DeserializeSeed<'de> for TimelineDeserializer<'de> {
 
 pub struct TimelineVisitor<'a> {
 	registry: &'a TypeRegistry,
+	asset_server: &'a AssetServer,
 }
 
 impl<'a, 'de> Visitor<'de> for TimelineVisitor<'a> {
@@ -233,14 +252,31 @@ impl<'a, 'de> Visitor<'de> for TimelineVisitor<'a> {
 	where
 		A: MapAccess<'de>,
 	{
-		let Some(TimelineField::Moments) = map.next_key()? else {
-			return Err(Error::missing_field("moments"));
-		};
-		let moments = map.next_value_seed(MomentMapDeserializer {
-			registry: self.registry,
-		})?;
+		let mut branch_from = None;
+		let mut merge_into = None;
+		let mut moments = None;
+		while let Some(key) = map.next_key()? {
+			match key {
+				TimelineField::BranchFrom => {
+					branch_from = self.asset_server.t_for_t_path(map.next_value()?)
+				}
+				TimelineField::Moments => {
+					moments = Some(map.next_value_seed(MomentMapDeserializer {
+						registry: self.registry,
+					})?)
+				}
+				TimelineField::MergeInto => {
+					merge_into = self.asset_server.t_for_t_path(map.next_value()?)
+				}
+			}
+		}
+		let moments = moments.ok_or_else(|| Error::missing_field("moments"))?;
 
-		Ok(Timeline { moments })
+		Ok(Timeline {
+			branch_from,
+			moments,
+			merge_into,
+		})
 	}
 }
 
@@ -310,7 +346,7 @@ impl<'a, 'de> DeserializeSeed<'de> for MomentDeserializer<'a> {
 }
 
 #[derive(Deserialize)]
-#[serde(field_identifier, rename_all = "lowercase")]
+#[serde(field_identifier, rename_all = "snake_case")]
 pub enum MomentField {
 	Label,
 	Desc,
@@ -377,30 +413,46 @@ pub struct LoadedTimelines(pub Vec<Handle<Timeline>>);
 /// Static, \[de]serializable time portal definition
 #[derive(Reflect, Clone, Debug, Serialize, Deserialize)]
 #[reflect(Serialize, Deserialize)]
-pub struct Portal {
-	pub from: (AssetPath<'static>, LoopTime),
-	pub to: (AssetPath<'static>, LoopTime),
-}
-
-impl Portal {
-	pub fn get_ref(&self, assets: &AssetServer) -> PortalRef {
-		let from_tl = assets.get_path_id(self.from.0.clone()).unwrap().typed();
-		let to_tl = assets.get_path_id(self.to.0.clone()).unwrap().typed();
-		PortalRef {
-			from: T {
-				timeline: from_tl,
-				time: self.from.1,
-			},
-			to: T {
-				timeline: to_tl,
-				time: self.to.1,
-			},
-		}
-	}
+pub struct PortalPath {
+	pub from: TPath,
+	pub to: TPath,
 }
 
 /// Runtime portal reference.
-pub struct PortalRef {
+pub struct Portal {
 	pub from: T,
 	pub to: T,
+}
+
+pub trait AssetServerExt {
+	fn t_for_t_path(&self, path: TPath) -> Option<T>;
+	fn t_path_for_t(&self, t: T) -> Option<TPath>;
+	fn portal_for_portal_path(&self, path: PortalPath) -> Option<Portal>;
+	fn portal_path_for_portal(&self, portal: Portal) -> Option<PortalPath>;
+}
+
+impl AssetServerExt for AssetServer {
+	fn t_for_t_path(&self, path: TPath) -> Option<T> {
+		let timeline = self.get_path_id(path.0)?.typed();
+		Some(T(timeline, path.1))
+	}
+
+	fn t_path_for_t(&self, t: T) -> Option<TPath> {
+		let timeline = self.get_path(t.0)?.into_owned();
+		Some(TPath(timeline, t.1))
+	}
+
+	fn portal_for_portal_path(&self, path: PortalPath) -> Option<Portal> {
+		Some(Portal {
+			from: self.t_for_t_path(path.from)?,
+			to: self.t_for_t_path(path.to)?,
+		})
+	}
+
+	fn portal_path_for_portal(&self, portal: Portal) -> Option<PortalPath> {
+		Some(PortalPath {
+			from: self.t_path_for_t(portal.from)?,
+			to: self.t_path_for_t(portal.to)?,
+		})
+	}
 }

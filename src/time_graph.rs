@@ -24,11 +24,21 @@ pub fn step_loop(
 		let path = asrv
 			.get_path(id)
 			.map_or_else(String::new, |path| format!("{path}: "));
+		if let Some(branch_from) = tl.branch_from.as_ref() {
+			if (prev..tloop.curr).contains(&branch_from.1) {
+				debug!(target: "time_graph", "{path}: branching from {branch_from:?}")
+			}
+		}
 		for (lt, mom) in tl.moments.range(prev..=tloop.curr) {
 			debug!(target: "time_graph", desc = mom.desc, "{path}{}@{lt}", mom.label.as_deref().unwrap_or(""));
 			for happen in mom.happenings.iter() {
 				trace!(target: "time_graph", "{happen:?}");
 				happen.apply(cmds.reborrow());
+			}
+		}
+		if let Some(merge_into) = tl.merge_into.as_ref() {
+			if (prev..tloop.curr).contains(&merge_into.1) {
+				debug!(target: "time_graph", "{path}: merging into {merge_into:?}")
 			}
 		}
 	}
