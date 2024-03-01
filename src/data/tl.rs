@@ -138,17 +138,20 @@ impl Index<T> for Assets<Timeline> {
 	type Output = Moment;
 
 	fn index(&self, index: T) -> &Self::Output {
-		&self.get(index.0).unwrap().moments[&index.1]
+		&self
+			.get(index.0)
+			.unwrap_or_else(|| panic!("Missing Timeline for {}", index.0))
+			.moments[&index.1]
 	}
 }
 
 impl IndexMut<T> for Assets<Timeline> {
 	fn index_mut(&mut self, index: T) -> &mut Self::Output {
 		self.get_mut(index.0)
-			.unwrap()
+			.unwrap_or_else(|| panic!("Missing Timeline for {}", index.0))
 			.moments
 			.get_mut(&index.1)
-			.unwrap()
+			.unwrap_or_else(|| panic!("Missing Moment for time {}", index.1))
 	}
 }
 
@@ -390,12 +393,29 @@ impl<'a, 'de> Visitor<'de> for MomentVisitor<'a> {
 						})?
 						.into_iter()
 						.map(|entry| {
-							let type_info = entry.get_represented_type_info().unwrap();
-							let registration = self.registry.get(type_info.type_id()).unwrap();
-							let reflect_do: &ReflectDo = registration.data::<ReflectDo>().unwrap();
-							reflect_do.get_boxed(entry).unwrap()
+							let type_info = entry.get_represented_type_info().ok_or_else(|| {
+								A::Error::custom(format!(
+									"missing represented TypeInfo for {entry:?}"
+								))
+							})?;
+							let registration =
+								self.registry.get(type_info.type_id()).ok_or_else(|| {
+									A::Error::custom(format!(
+										"missing TypeRegistration for {entry:?}"
+									))
+								})?;
+							let reflect_do = registration.data::<ReflectDo>().ok_or_else(|| {
+								A::Error::custom(format!(
+									"missing `ReflectDo` registration for {entry:?}"
+								))
+							})?;
+							reflect_do.get_boxed(entry).map_err(|entry| {
+								A::Error::custom(format!(
+									"failed to get Box<dyn Do> for {entry:?}))"
+								))
+							})
 						})
-						.collect(),
+						.collect::<Result<_, _>>()?,
 					)
 				}
 			}

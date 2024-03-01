@@ -15,6 +15,9 @@ vis_test = ["testing", "render"]
 render = ["bevy/bevy_render", "bevy/bevy_winit"]
 default = ["render"]
 
+[lints.clippy]
+unwrap_used = "warn"
+
 [workspace.dependencies.bevy]
 version = "0.13.0"
 default-features = false

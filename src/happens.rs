@@ -44,10 +44,13 @@ impl From<ReflectBall> for SharedShape {
 
 impl Command for SpawnPortalTo {
 	fn apply(self, world: &mut World) {
-		let t = world
+		let Some(t) = world
 			.resource::<AssetServer>()
 			.t_for_t_path(self.target.clone())
-			.unwrap();
+		else {
+			error!("Timeline {} is not loaded", &self.target.0);
+			return
+		};
 		world.spawn((
 			Collider::from(SharedShape::from(self.sensor)),
 			self.transform,
