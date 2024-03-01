@@ -1,8 +1,10 @@
-use bevy::prelude::*;
-use bevy_xpbd_3d::parry::shape::SharedShape;
-use bevy_xpbd_3d::prelude::{Collider, Sensor};
+use crate::data::tl::{AssetServerExt, PortalTo, ReflectDo, TPath};
+use bevy::{asset::AssetPath, ecs::system::Command, prelude::*};
+use bevy_xpbd_3d::{
+	parry::shape::SharedShape,
+	prelude::{Collider, Sensor},
+};
 use serde::{Deserialize, Serialize};
-use crate::data::tl::{Do, ReflectDo, InsertPortalTo, TPath};
 
 pub struct HappeningsPlugin;
 
@@ -12,7 +14,7 @@ impl Plugin for HappeningsPlugin {
 	}
 }
 
-#[derive(Component, Debug, Default, Reflect, Serialize, Deserialize)]
+#[derive(Component, Debug, Default, Clone, Reflect, Serialize, Deserialize)]
 #[reflect(Do, Serialize, Deserialize)]
 #[serde(default)]
 #[type_path = "happens"]
@@ -24,15 +26,13 @@ pub struct SpawnPortalTo {
 }
 
 #[derive(Component, Debug, Copy, Clone, Reflect, Serialize, Deserialize)]
-struct ReflectBall {
-	radius: f32,
+pub struct ReflectBall {
+	pub radius: f32,
 }
 
 impl Default for ReflectBall {
 	fn default() -> Self {
-		Self {
-			radius: 0.5,
-		}
+		Self { radius: 0.5 }
 	}
 }
 
@@ -42,14 +42,46 @@ impl From<ReflectBall> for SharedShape {
 	}
 }
 
-impl Do for SpawnPortalTo {
-	fn apply(&self, mut cmds: Commands) {
-		cmds.spawn((
+impl Command for SpawnPortalTo {
+	fn apply(self, world: &mut World) {
+		let t = world
+			.resource::<AssetServer>()
+			.t_for_t_path(self.target.clone())
+			.unwrap();
+		world.spawn((
 			Collider::from(SharedShape::from(self.sensor)),
 			self.transform,
 			self.global_transform,
 			Sensor,
-		))
-			.add(InsertPortalTo(self.target.clone()));
+			PortalTo(t),
+		));
+	}
+}
+
+#[derive(Reflect, Debug, Clone, Serialize, Deserialize)]
+#[reflect(Serialize, Deserialize)]
+#[type_path = "happens"]
+pub struct SpawnScene {
+	pub scene: AssetPath<'static>,
+}
+
+impl Command for SpawnScene {
+	fn apply(self, world: &mut World) {
+		let handle = world.resource::<AssetServer>().load(self.scene);
+		world.resource_mut::<SceneSpawner>().spawn(handle);
+	}
+}
+
+#[derive(Reflect, Debug, Clone, Serialize, Deserialize)]
+#[reflect(Serialize, Deserialize)]
+#[type_path = "happens"]
+pub struct SpawnDynamicScene {
+	pub scene: AssetPath<'static>,
+}
+
+impl Command for SpawnDynamicScene {
+	fn apply(self, world: &mut World) {
+		let handle = world.resource::<AssetServer>().load(self.scene);
+		world.resource_mut::<SceneSpawner>().spawn_dynamic(handle);
 	}
 }

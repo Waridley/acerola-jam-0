@@ -1,5 +1,6 @@
 use bevy::{
 	asset::{io::Reader, AssetLoader, AssetPath, AsyncReadExt, BoxedFuture, LoadContext},
+	ecs::system::Command,
 	prelude::*,
 	reflect::{TypeRegistry, TypeRegistryArc},
 	scene::{serde::SceneMapDeserializer, SceneLoaderError},
@@ -10,15 +11,13 @@ use serde::{
 	Deserialize, Deserializer, Serialize, Serializer,
 };
 use std::{
-	borrow::Cow,
+	borrow::{Borrow, Cow},
 	collections::BTreeMap,
 	fmt::{Debug, Display, Formatter},
 	ops::{Index, IndexMut},
 	str::FromStr,
 	time::Duration,
 };
-use bevy::ecs::system::{Command, EntityCommand};
-use bevy_xpbd_3d::prelude::{Collider, RigidBody, Sensor};
 
 pub struct TimeDataPlugin;
 
@@ -107,7 +106,7 @@ impl From<LoopTime> for Duration {
 	}
 }
 
-#[derive(Asset, TypePath, Debug, Default, Deref, DerefMut)]
+#[derive(Asset, TypePath, Default, Deref, DerefMut)]
 pub struct Timeline {
 	pub branch_from: Option<T>,
 	#[deref]
@@ -115,7 +114,7 @@ pub struct Timeline {
 	pub merge_into: Option<T>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct Moment {
 	pub label: Option<String>,
 	pub desc: Option<String>,
@@ -154,8 +153,14 @@ impl IndexMut<T> for Assets<Timeline> {
 }
 
 #[reflect_trait]
-pub trait Do: Debug + Send + Sync {
+pub trait Do: Send + Sync {
 	fn apply(&self, cmds: Commands);
+}
+
+impl<C: Command + Borrow<B>, B: ToOwned<Owned = C> + Send + Sync> Do for B {
+	fn apply(&self, mut cmds: Commands) {
+		cmds.add(self.to_owned())
+	}
 }
 
 /// A dummy happening for debugging time graph code
@@ -166,8 +171,8 @@ pub struct Print {
 	pub msg: Cow<'static, str>,
 }
 
-impl Do for Print {
-	fn apply(&self, _cmds: Commands) {
+impl Command for Print {
+	fn apply(self, _world: &mut World) {
 		info!(target: "happens::Print", "{}", &self.msg)
 	}
 }
@@ -461,14 +466,3 @@ impl AssetServerExt for AssetServer {
 
 #[derive(Component, Debug, Reflect)]
 pub struct PortalTo(pub T);
-
-#[derive(Component, Debug, Reflect, Serialize, Deserialize)]
-#[reflect(Serialize, Deserialize)]
-pub struct InsertPortalTo(pub TPath);
-
-impl EntityCommand for InsertPortalTo {
-	fn apply(self, id: Entity, world: &mut World) {
-		let t = world.resource::<AssetServer>().t_for_t_path(self.0).unwrap();
-		world.entity_mut(id).insert(PortalTo(t));
-	}
-}

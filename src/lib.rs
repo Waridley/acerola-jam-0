@@ -1,7 +1,7 @@
+use crate::happens::HappeningsPlugin;
 use bevy::prelude::*;
 use data::DataPlugin;
 use time_graph::TimeGraphPlugin;
-use crate::happens::HappeningsPlugin;
 
 pub mod data;
 pub mod happens;

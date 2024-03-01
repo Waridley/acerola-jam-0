@@ -32,7 +32,6 @@ pub fn step_loop(
 		for (lt, mom) in tl.moments.range(prev..=tloop.curr) {
 			debug!(target: "time_graph", desc = mom.desc, "{path}{}@{lt}", mom.label.as_deref().unwrap_or(""));
 			for happen in mom.happenings.iter() {
-				trace!(target: "time_graph", "{happen:?}");
 				happen.apply(cmds.reborrow());
 			}
 		}
@@ -44,10 +43,7 @@ pub fn step_loop(
 	}
 }
 
-pub fn print_timelines(
-	mut events: EventReader<AssetEvent<Timeline>>,
-	timelines: Res<Assets<Timeline>>,
-) {
+pub fn print_timelines(mut events: EventReader<AssetEvent<Timeline>>, assets: Res<AssetServer>) {
 	for ev in events.read() {
 		match ev {
 			AssetEvent::Added { id }
@@ -55,8 +51,9 @@ pub fn print_timelines(
 			| AssetEvent::Removed { id }
 			| AssetEvent::Unused { id }
 			| AssetEvent::LoadedWithDependencies { id } => {
-				let tl = timelines.get(*id).unwrap();
-				debug!("{ev:?}: {tl:?}");
+				let path = assets.get_path(*id).map(|path| path.to_string());
+				let path = path.as_deref().unwrap_or("");
+				debug!("{path}: {ev:?}");
 			}
 		}
 	}
