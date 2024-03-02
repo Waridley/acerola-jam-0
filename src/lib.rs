@@ -5,6 +5,7 @@ use bevy_xpbd_3d::{
 	prelude::{Collider, Gravity, RigidBody},
 };
 use data::DataPlugin;
+use std::f32::consts::FRAC_PI_6;
 use time_graph::TimeGraphPlugin;
 
 pub mod cam;
@@ -80,7 +81,10 @@ pub fn setup(
 	cmds.insert_resource(GlobalsScene(globals_scene.clone()));
 	scene_spawner.spawn_dynamic(globals_scene);
 
-	cmds.spawn((DirectionalLightBundle { ..default() },));
+	cmds.spawn((DirectionalLightBundle {
+		transform: Transform::from_rotation(Quat::from_rotation_x(FRAC_PI_6)),
+		..default()
+	},));
 	cmds.spawn((
 		PbrBundle {
 			mesh: meshes.add(Cuboid::from_size(Vec3::splat(1.0))),

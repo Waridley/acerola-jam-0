@@ -1,3 +1,4 @@
 **/target/
 **/imported_assets/
 dist/
+**/*~*
