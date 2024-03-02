@@ -1,5 +1,6 @@
 use bevy::{app::App, prelude::Plugin};
 
+pub mod cam;
 pub mod tl;
 
 pub struct DataPlugin;

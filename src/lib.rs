@@ -1,8 +1,8 @@
-use crate::{cam::CamPlugin, happens::HappeningsPlugin};
+use crate::{cam::CamPlugin, happens::HappeningsPlugin, player::PlayerPlugin};
 use bevy::prelude::*;
 use bevy_xpbd_3d::{
 	plugins::PhysicsPlugins,
-	prelude::{Collider, RigidBody},
+	prelude::{Collider, Gravity, RigidBody},
 };
 use data::DataPlugin;
 use time_graph::TimeGraphPlugin;
@@ -10,6 +10,7 @@ use time_graph::TimeGraphPlugin;
 pub mod cam;
 pub mod data;
 pub mod happens;
+pub mod player;
 pub mod time_graph;
 
 pub struct GamePlugin {
@@ -19,6 +20,7 @@ pub struct GamePlugin {
 
 impl Plugin for GamePlugin {
 	fn build(&self, app: &mut App) {
+		// Dependencies
 		app.add_plugins((
 			DefaultPlugins
 				.set(AssetPlugin {
@@ -36,11 +38,18 @@ impl Plugin for GamePlugin {
 					}),
 					..default()
 				}),
+			PhysicsPlugins::default(),
+		));
+
+		app.insert_resource(Gravity(Vec3::NEG_Z * 9.81));
+
+		// Mine
+		app.add_plugins((
 			DataPlugin,
 			CamPlugin,
 			HappeningsPlugin,
 			TimeGraphPlugin,
-			PhysicsPlugins::default(),
+			PlayerPlugin,
 		))
 		.add_systems(Startup, setup);
 
@@ -74,12 +83,77 @@ pub fn setup(
 	cmds.spawn((DirectionalLightBundle { ..default() },));
 	cmds.spawn((
 		PbrBundle {
-			mesh: meshes.add(Cuboid::from_size(Vec3::splat(100.0))),
+			mesh: meshes.add(Cuboid::from_size(Vec3::splat(1.0))),
 			material: mats.add(Color::WHITE),
 			..default()
 		},
 		RigidBody::Static,
-		Collider::cuboid(100.0, 100.0, 100.0),
+		Collider::cuboid(1.0, 1.0, 1.0),
+	));
+	cmds.spawn((
+		PbrBundle {
+			mesh: meshes.add(Cuboid::from_size(Vec3::splat(1.0))),
+			material: mats.add(Color::WHITE),
+			transform: Transform {
+				translation: Vec3::new(1.0, 0.0, -0.5),
+				..default()
+			},
+			..default()
+		},
+		RigidBody::Static,
+		Collider::cuboid(1.0, 1.0, 1.0),
+	));
+	cmds.spawn((
+		PbrBundle {
+			mesh: meshes.add(Cuboid::from_size(Vec3::splat(1.0))),
+			material: mats.add(Color::WHITE),
+			transform: Transform {
+				translation: Vec3::new(2.0, 0.0, -0.75),
+				..default()
+			},
+			..default()
+		},
+		RigidBody::Static,
+		Collider::cuboid(1.0, 1.0, 1.0),
+	));
+	cmds.spawn((
+		PbrBundle {
+			mesh: meshes.add(Cuboid::from_size(Vec3::splat(1.0))),
+			material: mats.add(Color::WHITE),
+			transform: Transform {
+				translation: Vec3::new(3.0, 0.0, -0.875),
+				..default()
+			},
+			..default()
+		},
+		RigidBody::Static,
+		Collider::cuboid(1.0, 1.0, 1.0),
+	));
+	cmds.spawn((
+		PbrBundle {
+			mesh: meshes.add(
+				Plane3d {
+					normal: Direction3d::Z,
+				}
+				.mesh()
+				.size(18.0, 18.0),
+			),
+			material: mats.add(Color::DARK_GRAY),
+			transform: Transform::from_translation(Vec3::NEG_Z * 18.0),
+			..default()
+		},
+		RigidBody::Static,
+		Collider::halfspace(Vec3::Z),
+	));
+	cmds.spawn((
+		PbrBundle {
+			mesh: meshes.add(Cuboid::new(8.0, 8.0, 1.0)),
+			material: mats.add(Color::DARK_GRAY),
+			transform: Transform::from_translation(Vec3::NEG_Z * 1.0),
+			..default()
+		},
+		RigidBody::Static,
+		Collider::cuboid(8.0, 8.0, 1.0),
 	));
 }
 
@@ -88,9 +162,7 @@ pub fn toggle_projection(mut q: Query<&mut Projection>, keys: Res<ButtonInput<Ke
 	if keys.just_pressed(KeyCode::KeyO) {
 		for mut proj in &mut q {
 			let new = match &*proj {
-				Projection::Perspective(_) => {
-					Projection::Orthographic(OrthographicProjection::default())
-				}
+				Projection::Perspective(_) => Projection::Orthographic(cam::ortho_projection()),
 				Projection::Orthographic(_) => {
 					Projection::Perspective(PerspectiveProjection::default())
 				}
