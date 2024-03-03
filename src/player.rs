@@ -12,10 +12,9 @@ use bevy_xpbd_3d::{
 };
 use leafwing_input_manager::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::f32::consts::FRAC_PI_2;
+use std::f32::consts::{FRAC_PI_2, FRAC_PI_4};
 use std::time::Duration;
 use sond_bevy_enum_components::{EntityEnumCommands, EnumComponent, WithVariant};
-use crate::player::player_entity::WithPlayerEntity;
 
 pub struct PlayerPlugin;
 
@@ -74,7 +73,7 @@ pub fn spawn_player(
 		(Action::Dash, GamepadButtonType::RightTrigger2.into()),
 	]);
 
-	let layout = TextureAtlasLayout::from_grid(Vec2::new(256.0, 512.0), 2, 2, None, None);
+	let layout = TextureAtlasLayout::from_grid(Vec2::new(256.0, 512.0), 4, 2, None, None);
 	let layout = params.atlas_layouts.add(layout);
 
 	cmds.spawn((
@@ -121,7 +120,10 @@ pub fn spawn_player(
 				..default()
 			}
 			.bundle_with_atlas(&mut params, TextureAtlas { layout, index: 0 }),
-			PlayerAnimationTimer(Timer::new(Duration::from_millis(300), TimerMode::Repeating)),
+			PlayerAnimationState {
+				timer: Timer::new(Duration::from_millis(300), TimerMode::Repeating),
+				curr_animation: default()
+			},
 		)).with_enum(player_entity::Sprite);
 	});
 	cmds.remove_resource::<PlayerSpriteSheet>();
@@ -135,9 +137,12 @@ pub enum Action {
 	Dash,
 }
 
-pub fn move_player(mut q: Query<(&mut TnuaController, &ActionState<Action>)>) {
-	for (mut ctrl, state) in &mut q {
-		let v = state
+pub fn move_player(
+	mut q: Query<(Entity, &mut TnuaController, &ActionState<Action>)>,
+	mut anim_q: Query<(&mut PlayerAnimationState, &Parent)>,
+) {
+	for (id, mut ctrl, action_state) in &mut q {
+		let v = action_state
 			.clamped_axis_pair(&Action::Move)
 			.map_or(Vec2::ZERO, |data| data.xy() * 2.0);
 
@@ -153,7 +158,17 @@ pub fn move_player(mut q: Query<(&mut TnuaController, &ActionState<Action>)>) {
 			..default()
 		});
 
-		if state.pressed(&Action::Jump) {
+		for (mut anim_state, parent) in &mut anim_q {
+			if parent.get() == id {
+				use PlayerAnimation::*;
+				if v.angle_between(Vec2::Y).abs() < FRAC_PI_4 {
+					anim_state.curr_animation = Forward
+				} else if v.angle_between(Vec2::NEG_Y).abs() < FRAC_PI_4 {
+					anim_state.curr_animation = Backward
+				};
+			}
+		}
+		if action_state.pressed(&Action::Jump) {
 			ctrl.action(TnuaBuiltinJump {
 				height: 1.2,
 				takeoff_extra_gravity: 5.0,
@@ -166,16 +181,35 @@ pub fn move_player(mut q: Query<(&mut TnuaController, &ActionState<Action>)>) {
 }
 
 pub fn animate_player(
-	mut q: Query<(&mut TextureAtlas, &mut PlayerAnimationTimer), WithVariant<player_entity::Sprite>>,
+	mut q: Query<(&mut TextureAtlas, &mut PlayerAnimationState), WithVariant<player_entity::Sprite>>,
 	t: Res<Time>,
 ) {
-	for (mut atlas, mut timer) in &mut q {
-		timer.0.tick(t.delta());
-		if timer.0.just_finished() {
-			atlas.index = (atlas.index + 1) % 4;
+	for (mut atlas, mut state) in &mut q {
+		state.timer.tick(t.delta());
+		let new = if state.timer.just_finished() {
+			atlas.index + 1
+		} else {
+			atlas.index
+		};
+		let new = (new % 4) + (state.curr_animation as usize * 4);
+		if atlas.index != new {
+			atlas.index = new;
 		}
 	}
 }
 
 #[derive(Component)]
-pub struct PlayerAnimationTimer(pub Timer);
+pub struct PlayerAnimationState {
+	pub timer: Timer,
+	pub curr_animation: PlayerAnimation,
+}
+
+#[derive(Copy, Clone, Default, Debug)]
+#[repr(usize)]
+pub enum PlayerAnimation {
+	#[default]
+	Backward = 0,
+	Forward = 1,
+	Left = 2,
+	Right = 3,
+}
