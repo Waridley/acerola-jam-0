@@ -110,7 +110,7 @@ pub fn spawn_player(
 						// Nudge towards camera to align feet with far edge of platforms before falling off.
 						y: -0.125,
 						// Nudge down to compensate for float height.
-						z: -0.175,
+						z: -0.125,
 					},
 					// Z is up.
 					rotation: Quat::from_rotation_x(FRAC_PI_2),
@@ -152,7 +152,7 @@ pub fn move_player(
 		ctrl.basis(TnuaBuiltinWalk {
 			desired_velocity: Vec3::new(v.x, v.y, 0.0),
 			up: Direction3d::Z,
-			float_height: 0.375,
+			float_height: 0.325,
 			cling_distance: 0.05,
 			acceleration: 24.0,
 			air_acceleration: 8.0,

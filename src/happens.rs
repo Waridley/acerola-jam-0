@@ -30,7 +30,9 @@ pub struct SpawnPortalTo {
 }
 
 #[derive(Component, Debug, Copy, Clone, Reflect, Serialize, Deserialize)]
+#[reflect(Serialize, Deserialize)]
 #[serde(default)]
+#[type_path = "happens"]
 pub struct ReflectBall {
 	pub radius: f32,
 }
@@ -139,6 +141,7 @@ impl Command for ModifyTimeline {
 
 #[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
 #[reflect(Serialize, Deserialize)]
+#[type_path = "happens"]
 pub struct TimelineCommand {
 	pub path: AssetPath<'static>,
 	pub timeline_updates: Vec<MomentUpdate>,
@@ -146,6 +149,7 @@ pub struct TimelineCommand {
 
 #[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
 #[reflect(Serialize, Deserialize)]
+#[type_path = "happens"]
 pub struct MomentUpdate {
 	pub moment: MomentRef,
 	#[serde(default)]
@@ -156,6 +160,7 @@ pub struct MomentUpdate {
 
 #[derive(Debug, Copy, Clone, Reflect, Serialize, Deserialize)]
 #[reflect(Serialize, Deserialize)]
+#[type_path = "happens"]
 pub enum SetDisabled {
 	Set { disabled: bool },
 	Toggle,
