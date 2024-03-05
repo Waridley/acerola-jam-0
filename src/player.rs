@@ -12,9 +12,11 @@ use bevy_xpbd_3d::{
 };
 use leafwing_input_manager::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::f32::consts::{FRAC_PI_2, FRAC_PI_4};
-use std::time::Duration;
 use sond_bevy_enum_components::{EntityEnumCommands, EnumComponent, WithVariant};
+use std::{
+	f32::consts::{FRAC_PI_2, FRAC_PI_4},
+	time::Duration,
+};
 
 pub struct PlayerPlugin;
 
@@ -73,7 +75,7 @@ pub fn spawn_player(
 		(Action::Dash, GamepadButtonType::RightTrigger2.into()),
 	]);
 
-	let layout = TextureAtlasLayout::from_grid(Vec2::new(256.0, 512.0), 4, 2, None, None);
+	let layout = TextureAtlasLayout::from_grid(Vec2::new(256.0, 512.0), 4, 4, None, None);
 	let layout = params.atlas_layouts.add(layout);
 
 	cmds.spawn((
@@ -121,10 +123,11 @@ pub fn spawn_player(
 			}
 			.bundle_with_atlas(&mut params, TextureAtlas { layout, index: 0 }),
 			PlayerAnimationState {
-				timer: Timer::new(Duration::from_millis(300), TimerMode::Repeating),
-				curr_animation: default()
+				timer: Timer::new(Duration::from_millis(350), TimerMode::Repeating),
+				curr_animation: default(),
 			},
-		)).with_enum(player_entity::Sprite);
+		))
+		.with_enum(player_entity::Sprite);
 	});
 	cmds.remove_resource::<PlayerSpriteSheet>();
 }
@@ -161,11 +164,21 @@ pub fn move_player(
 		for (mut anim_state, parent) in &mut anim_q {
 			if parent.get() == id {
 				use PlayerAnimation::*;
+
 				if v.angle_between(Vec2::Y).abs() < FRAC_PI_4 {
 					anim_state.curr_animation = Forward
 				} else if v.angle_between(Vec2::NEG_Y).abs() < FRAC_PI_4 {
 					anim_state.curr_animation = Backward
+				} else if v.angle_between(Vec2::NEG_X).abs() < FRAC_PI_4 {
+					anim_state.curr_animation = Left
+				} else if v.angle_between(Vec2::X).abs() < FRAC_PI_4 {
+					anim_state.curr_animation = Right
 				};
+				if v.length() > 0.5 {
+					anim_state.timer.set_duration(Duration::from_millis(200))
+				} else {
+					anim_state.timer.set_duration(Duration::from_millis(350))
+				}
 			}
 		}
 		if action_state.pressed(&Action::Jump) {
@@ -181,7 +194,10 @@ pub fn move_player(
 }
 
 pub fn animate_player(
-	mut q: Query<(&mut TextureAtlas, &mut PlayerAnimationState), WithVariant<player_entity::Sprite>>,
+	mut q: Query<
+		(&mut TextureAtlas, &mut PlayerAnimationState),
+		WithVariant<player_entity::Sprite>,
+	>,
 	t: Res<Time>,
 ) {
 	for (mut atlas, mut state) in &mut q {
