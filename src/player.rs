@@ -80,7 +80,7 @@ pub fn spawn_player(
 
 	cmds.spawn((
 		TransformBundle {
-			local: Transform::from_translation(Vec3::Z * 2.0),
+			local: Transform::from_translation(Vec3::NEG_Y * 4.0),
 			..default()
 		},
 		VisibilityBundle::default(),
@@ -109,8 +109,8 @@ pub fn spawn_player(
 						x: 0.0,
 						// Nudge towards camera to align feet with far edge of platforms before falling off.
 						y: -0.125,
-						// Nudge down to compensate for half of float height.
-						z: -0.125,
+						// Nudge down to compensate for float height.
+						z: -0.175,
 					},
 					// Z is up.
 					rotation: Quat::from_rotation_x(FRAC_PI_2),

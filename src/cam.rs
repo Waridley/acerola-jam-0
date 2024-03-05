@@ -3,7 +3,6 @@ use bevy::{
 	prelude::*, render::camera::ScalingMode, transform::TransformSystem::TransformPropagate,
 };
 use bevy_xpbd_3d::PhysicsSet;
-use std::f32::consts::FRAC_PI_3;
 
 pub struct CamPlugin;
 
@@ -19,11 +18,17 @@ impl Plugin for CamPlugin {
 }
 
 pub fn setup(mut cmds: Commands) {
+	let translation = Vec3::new(0.0, -50.0, 25.0);
 	cmds.spawn((TransformBundle::default(), CamAnchor))
 		.with_children(|cmds| {
 			cmds.spawn(TransformBundle::from_transform(Transform {
-				translation: Vec3::new(0.0, -10.0, 5.0),
-				rotation: Quat::from_rotation_x(FRAC_PI_3),
+				translation,
+				rotation: Quat::from_rotation_arc(
+					// Default camera view direction
+					Vec3::NEG_Z,
+					// Desired view direction
+					-translation.normalize(),
+				),
 				..default()
 			}))
 			.with_children(|cmds| {
@@ -56,6 +61,7 @@ pub fn cam_follow_player(
 pub fn ortho_projection() -> OrthographicProjection {
 	OrthographicProjection {
 		scaling_mode: ScalingMode::FixedVertical(9.0),
+		far: 200.0,
 		..default()
 	}
 }

@@ -1,11 +1,14 @@
 use crate::{cam::CamPlugin, happens::HappeningsPlugin, player::PlayerPlugin};
-use bevy::prelude::*;
+use bevy::{
+	pbr::{CascadeShadowConfigBuilder, NotShadowCaster},
+	prelude::*,
+};
 use bevy_xpbd_3d::{
 	plugins::PhysicsPlugins,
 	prelude::{Collider, Gravity, RigidBody},
 };
 use data::DataPlugin;
-use std::f32::consts::FRAC_PI_6;
+use std::f32::consts::{FRAC_PI_2, FRAC_PI_6};
 use time_graph::TimeGraphPlugin;
 
 pub mod cam;
@@ -82,7 +85,18 @@ pub fn setup(
 	scene_spawner.spawn_dynamic(globals_scene);
 
 	cmds.spawn((DirectionalLightBundle {
+		directional_light: DirectionalLight {
+			shadows_enabled: true,
+			..default()
+		},
 		transform: Transform::from_rotation(Quat::from_rotation_x(FRAC_PI_6)),
+		cascade_shadow_config: CascadeShadowConfigBuilder {
+			num_cascades: 1,
+			minimum_distance: 50.0,
+			maximum_distance: 80.0,
+			..default()
+		}
+		.into(),
 		..default()
 	},));
 	cmds.spawn((
@@ -133,31 +147,88 @@ pub fn setup(
 		RigidBody::Static,
 		Collider::cuboid(1.0, 1.0, 1.0),
 	));
+	let panel_col = Collider::cuboid(16.0, 16.0, 1.0);
+	let panel_mesh = meshes.add(Cuboid::new(16.0, 16.0, 1.0));
+	let dark_gray = mats.add(Color::DARK_GRAY);
 	cmds.spawn((
 		PbrBundle {
-			mesh: meshes.add(
-				Plane3d {
-					normal: Direction3d::Z,
-				}
-				.mesh()
-				.size(18.0, 18.0),
-			),
-			material: mats.add(Color::DARK_GRAY),
-			transform: Transform::from_translation(Vec3::NEG_Z * 18.0),
-			..default()
-		},
-		RigidBody::Static,
-		Collider::halfspace(Vec3::Z),
-	));
-	cmds.spawn((
-		PbrBundle {
-			mesh: meshes.add(Cuboid::new(8.0, 8.0, 1.0)),
-			material: mats.add(Color::DARK_GRAY),
+			mesh: panel_mesh.clone(),
+			material: dark_gray.clone(),
 			transform: Transform::from_translation(Vec3::NEG_Z * 1.0),
 			..default()
 		},
 		RigidBody::Static,
-		Collider::cuboid(8.0, 8.0, 1.0),
+		panel_col.clone(),
+		NotShadowCaster,
+	));
+	cmds.spawn((
+		PbrBundle {
+			mesh: panel_mesh.clone(),
+			material: dark_gray.clone(),
+			transform: Transform {
+				translation: Vec3::new(0.0, 8.5, 6.5),
+				rotation: Quat::from_rotation_x(FRAC_PI_2),
+				..default()
+			},
+			..default()
+		},
+		RigidBody::Static,
+		panel_col.clone(),
+		NotShadowCaster,
+	));
+	cmds.spawn((
+		PbrBundle {
+			mesh: panel_mesh.clone(),
+			material: dark_gray.clone(),
+			transform: Transform {
+				translation: Vec3::new(-7.5, 0.0, 6.5),
+				rotation: Quat::from_rotation_y(FRAC_PI_2),
+				..default()
+			},
+			..default()
+		},
+		RigidBody::Static,
+		panel_col.clone(),
+		NotShadowCaster,
+	));
+	cmds.spawn((
+		PbrBundle {
+			mesh: panel_mesh.clone(),
+			material: dark_gray.clone(),
+			transform: Transform {
+				translation: Vec3::new(7.5, 0.0, 6.5),
+				rotation: Quat::from_rotation_y(FRAC_PI_2),
+				..default()
+			},
+			..default()
+		},
+		RigidBody::Static,
+		panel_col.clone(),
+		NotShadowCaster,
+	));
+	cmds.spawn((
+		TransformBundle {
+			local: Transform {
+				translation: Vec3::new(0.0, -8.5, 6.5),
+				rotation: Quat::from_rotation_x(FRAC_PI_2),
+				..default()
+			},
+			..default()
+		},
+		RigidBody::Static,
+		panel_col.clone(),
+		NotShadowCaster,
+	));
+	// Orb
+	cmds.spawn((
+		PbrBundle {
+			mesh: meshes.add(Sphere::new(0.3)),
+			material: mats.add(Color::ORANGE_RED),
+			transform: Transform::from_translation(Vec3::Z * 0.8),
+			..default()
+		},
+		Collider::sphere(0.3),
+		RigidBody::Static,
 	));
 }
 
