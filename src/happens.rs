@@ -14,7 +14,8 @@ pub struct HappeningsPlugin;
 impl Plugin for HappeningsPlugin {
 	fn build(&self, app: &mut App) {
 		app.register_type::<SpawnPortalTo>()
-			.register_type::<ModifyTimeline>();
+			.register_type::<ModifyTimeline>()
+			.register_type::<Despawn>();
 	}
 }
 
@@ -171,6 +172,28 @@ impl SetDisabled {
 		match self {
 			SetDisabled::Set { disabled } => *flag = disabled,
 			SetDisabled::Toggle => *flag = !*flag,
+		}
+	}
+}
+
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
+#[reflect(Do, Serialize, Deserialize)]
+#[type_path = "happens"]
+pub struct Despawn {
+	entity: Name,
+}
+
+impl Command for Despawn {
+	fn apply(self, world: &mut World) {
+		let mut q = world.query::<(Entity, &Name)>();
+		let mut ids = Vec::new();
+		for (id, name) in q.iter(world) {
+			if name == &self.entity {
+				ids.push(id);
+			}
+		}
+		for id in ids {
+			world.despawn(id);
 		}
 	}
 }

@@ -26,10 +26,10 @@
 			}]
 		),
 		"1m": (
-			label: "minute",
+			label: "despawn_orb",
 			happenings: [{
-				"happens::Print": (
-					msg: "A minute has passed",
+				"happens::Despawn": (
+					entity: "Orb",
 				),
 			}],
 		),
