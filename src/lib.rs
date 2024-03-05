@@ -1,4 +1,9 @@
-use crate::{cam::CamPlugin, happens::HappeningsPlugin, player::PlayerPlugin};
+use crate::{
+	cam::CamPlugin,
+	happens::HappeningsPlugin,
+	player::PlayerPlugin,
+	scn::clock::{tick_hand, ClockScene, Hand},
+};
 use bevy::{
 	pbr::{CascadeShadowConfigBuilder, NotShadowCaster},
 	prelude::*,
@@ -15,6 +20,7 @@ pub mod cam;
 pub mod data;
 pub mod happens;
 pub mod player;
+pub mod scn;
 pub mod time_graph;
 
 pub struct GamePlugin {
@@ -55,7 +61,9 @@ impl Plugin for GamePlugin {
 			TimeGraphPlugin,
 			PlayerPlugin,
 		))
-		.add_systems(Startup, setup);
+		.add_systems(Startup, setup)
+		.add_systems(Update, tick_hand)
+		.register_type::<Hand>();
 
 		#[cfg(feature = "debugging")]
 		app.add_plugins(bevy_xpbd_3d::plugins::PhysicsDebugPlugin::default())
@@ -68,6 +76,10 @@ impl Plugin for GamePlugin {
 			)
 			.add_systems(Update, (toggle_projection, toggle_phys_gizmos));
 	}
+
+	fn finish(&self, app: &mut App) {
+		app.init_resource::<ClockScene>();
+	}
 }
 
 #[derive(Resource, Deref, DerefMut)]
@@ -79,6 +91,7 @@ pub fn setup(
 	mut scene_spawner: ResMut<SceneSpawner>,
 	mut meshes: ResMut<Assets<Mesh>>,
 	mut mats: ResMut<Assets<StandardMaterial>>,
+	clock: Res<ClockScene>,
 ) {
 	let globals_scene = assets.load("globals.scn.ron");
 	cmds.insert_resource(GlobalsScene(globals_scene.clone()));
@@ -219,8 +232,9 @@ pub fn setup(
 		panel_col.clone(),
 		NotShadowCaster,
 	));
-	// Orb
+
 	cmds.spawn((
+		Name::new("Orb"),
 		PbrBundle {
 			mesh: meshes.add(Sphere::new(0.3)),
 			material: mats.add(Color::ORANGE_RED),
@@ -230,6 +244,12 @@ pub fn setup(
 		Collider::sphere(0.3),
 		RigidBody::Static,
 	));
+
+	let clock_anchor = cmds.spawn((
+		TransformBundle::from_transform(Transform::from_translation(Vec3::NEG_Y * 0.6)),
+		VisibilityBundle::default(),
+	));
+	scene_spawner.spawn_as_child(clock.0.clone(), clock_anchor.id());
 }
 
 #[cfg(feature = "debugging")]
