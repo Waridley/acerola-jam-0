@@ -3,27 +3,35 @@
 		"4s": (
 			label: "print_hello",
 			desc: "Prints 'Hello!' after 4 seconds",
-			happenings: {
+			happenings: [{
 				"happens::Print": (
 					msg: "Hello!",
 				),
-			},
+			}],
 		),
 		"20s": (
 			label: "1_score_seconds",
-			happenings: {
+			happenings: [{
 				"happens::Print": (
 					msg: "20 seconds have passed",
 				),
-			},
+			}],
+		),
+		"27s": (
+			label: "shouldn't_happen",
+			happenings: [{
+				"happens::Print": (
+					msg: "Oops! This should have been disabled!",
+				)
+			}]
 		),
 		"1m": (
 			label: "minute",
-			happenings: {
+			happenings: [{
 				"happens::Print": (
 					msg: "A minute has passed",
 				),
-			},
+			}],
 		),
 	}
 )

@@ -3,7 +3,7 @@ use bevy::{
 	prelude::*, render::camera::ScalingMode, transform::TransformSystem::TransformPropagate,
 };
 use bevy_xpbd_3d::PhysicsSet;
-use std::f32::consts::{FRAC_PI_3};
+use std::f32::consts::FRAC_PI_3;
 
 pub struct CamPlugin;
 

@@ -1,5 +1,8 @@
-use crate::data::tl::{TimeLoop, Timeline};
-use bevy::prelude::*;
+use crate::data::{
+	tl::{TimeLoop, Timeline},
+	Str,
+};
+use bevy::{prelude::*, utils::intern::Interned};
 
 pub struct TimeGraphPlugin;
 
@@ -26,13 +29,26 @@ pub fn step_loop(
 			.map_or_else(String::new, |path| format!("{path}: "));
 		if let Some(branch_from) = tl.branch_from.as_ref() {
 			if (prev..tloop.curr).contains(&branch_from.1) {
-				debug!(target: "time_graph", "{path}: branching from {branch_from:?}")
+				info!(target: "time_graph", "{path}: branching from {branch_from:?}")
 			}
 		}
 		for (lt, mom) in tl.moments.range(prev..=tloop.curr) {
-			debug!(target: "time_graph", desc = mom.desc, "{path}{}@{lt}", mom.label.as_deref().unwrap_or(""));
-			for happen in mom.happenings.iter() {
-				happen.apply(cmds.reborrow());
+			if mom.disabled {
+				debug!(target: "time_graph", "[disabled] {}@{lt}", mom.label.unwrap_or(Str(Interned(""))));
+				continue;
+			}
+			debug!(target: "time_graph", desc = mom.desc.as_deref(), "{path}{}@{lt}", mom.label.unwrap_or(Str(Interned(""))));
+			for happenings in mom.happenings.iter() {
+				if happenings.disabled {
+					debug!(target: "time_graph", "[disabled] {}", happenings.label.unwrap_or(Str(Interned(""))));
+					continue;
+				}
+				if let Some(label) = happenings.label.as_ref() {
+					debug!(target: "time_graph", "{label}");
+				}
+				for happen in &happenings.actions {
+					happen.apply(cmds.reborrow());
+				}
 			}
 		}
 		if let Some(merge_into) = tl.merge_into.as_ref() {

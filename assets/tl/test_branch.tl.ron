@@ -1,26 +1,43 @@
+#![enable(implicit_some)]
 (
 	branch_from: ("tl/main.tl.ron", "15s"),
 	moments: {
+		"17s": (
+			label: "disable_shouldn't_happen",
+			happenings: [{
+				"happens::ModifyTimeline": ([
+					(
+						path: "tl/main.tl.ron",
+						timeline_updates: [
+							(
+								moment: Labelled("shouldn't_happen"),
+								disabled: Set( disabled: true ),
+							),
+						],
+					),
+				]),
+			}],
+		),
 		"42s": (
 			label: "answer_life_universe_and_everything",
-			happenings: {
+			happenings: [{
 				"happens::Print": (
 					msg: "Eureka!",
 				),
-			}
+			}]
 		),
 		"30s": (
-			happenings: {
+			happenings: [{
 				"happens::SpawnPortalTo": (
 					target: ("tl/main.tl.ron", "7s"),
 					transform: (
-						translation: ( 300.0, 0.0, 0.0 ),
-						rotation: ( 0.0, 0.0, 0.0, 1.0 ),
+						translation: (300.0, 0.0, 0.0),
+						rotation: (0.0, 0.0, 0.0, 1.0),
 						// rotation: ( 0.5, 0.5, -0.0, 0.70710677 ),
-						scale: ( 1.0, 1.0, 1.0 ),
+						scale: (1.0, 1.0, 1.0),
 					)
 				)
-			}
+			}]
 		)
 	},
 	merge_into: ("tl/main.tl.ron", "1m30s"),

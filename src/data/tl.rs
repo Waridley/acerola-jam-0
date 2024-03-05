@@ -2,8 +2,8 @@ use bevy::{
 	asset::{io::Reader, AssetLoader, AssetPath, AsyncReadExt, BoxedFuture, LoadContext},
 	ecs::system::Command,
 	prelude::*,
-	reflect::{TypeRegistry, TypeRegistryArc},
-	scene::{serde::SceneMapDeserializer, SceneLoaderError},
+	reflect::{serde::TypedReflectDeserializer, TypeRegistry, TypeRegistryArc},
+	scene::SceneLoaderError,
 };
 use humantime::DurationError;
 use serde::{
@@ -19,6 +19,11 @@ use std::{
 	time::Duration,
 };
 
+use bevy::utils::CowArc;
+
+use super::Str;
+use serde::de::SeqAccess;
+
 pub struct TimeDataPlugin;
 
 impl Plugin for TimeDataPlugin {
@@ -26,9 +31,16 @@ impl Plugin for TimeDataPlugin {
 		app.init_resource::<TimeLoop>()
 			.init_asset::<Timeline>()
 			.register_type::<Print>()
+			.register_type::<LoopTime>()
 			.register_type::<T>()
+			.register_type::<TPath>()
+			.register_type::<Str>()
+			.register_type::<MomentRef>()
+			.register_type::<Print>()
+			.register_type::<TimeLoop>()
 			.register_type::<(AssetPath<'static>, T)>()
-			.register_type::<PortalPath>();
+			.register_type::<PortalPath>()
+			.register_type::<PortalTo>();
 	}
 
 	fn finish(&self, app: &mut App) {
@@ -114,11 +126,40 @@ pub struct Timeline {
 	pub merge_into: Option<T>,
 }
 
+impl Timeline {
+	pub fn get_moment(&self, moment: &MomentRef) -> Option<&Moment> {
+		match moment {
+			MomentRef::At(t) => self.moments.get(t),
+			MomentRef::Labelled(label) => self
+				.moments
+				.iter()
+				.find_map(|(_, mom)| (mom.label.as_deref() == Some(label)).then_some(mom)),
+		}
+	}
+
+	pub fn get_moment_mut(&mut self, moment: &MomentRef) -> Option<&mut Moment> {
+		match moment {
+			MomentRef::At(t) => self.moments.get_mut(t),
+			MomentRef::Labelled(label) => self
+				.moments
+				.iter_mut()
+				.find_map(|(_, mom)| (mom.label.as_deref() == Some(label)).then_some(mom)),
+		}
+	}
+}
+
 #[derive(Default)]
 pub struct Moment {
-	pub label: Option<String>,
-	pub desc: Option<String>,
-	pub happenings: Vec<Box<dyn Do>>,
+	pub label: Option<Str>,
+	pub desc: Option<CowArc<'static, str>>,
+	pub happenings: Vec<Happenings>,
+	pub disabled: bool,
+}
+
+pub struct Happenings {
+	pub label: Option<Str>,
+	pub actions: Vec<Box<dyn Do>>,
+	pub disabled: bool,
 }
 
 #[derive(Reflect, Copy, Clone, Debug, Default)]
@@ -127,6 +168,14 @@ pub struct T(pub AssetId<Timeline>, pub LoopTime);
 #[derive(Reflect, Clone, Debug, Serialize, Deserialize)]
 #[reflect(Serialize, Deserialize)]
 pub struct TPath(pub AssetPath<'static>, pub LoopTime);
+
+/// Reference to a moment within a timeline.
+#[derive(Clone, Debug, Reflect, Serialize, Deserialize)]
+#[reflect(Serialize, Deserialize)]
+pub enum MomentRef {
+	At(LoopTime),
+	Labelled(Str),
+}
 
 impl Default for TPath {
 	fn default() -> Self {
@@ -361,6 +410,7 @@ pub enum MomentField {
 	Label,
 	Desc,
 	Happenings,
+	Disabled,
 }
 
 pub struct MomentVisitor<'a> {
@@ -381,42 +431,19 @@ impl<'a, 'de> Visitor<'de> for MomentVisitor<'a> {
 		let mut label = None;
 		let mut desc = None;
 		let mut happenings = None;
+		let mut disabled = false;
 
 		while let Some(key) = map.next_key()? {
 			match key {
 				MomentField::Label => label = Some(map.next_value()?),
-				MomentField::Desc => desc = Some(map.next_value()?),
+				MomentField::Desc => desc = Some(map.next_value::<String>()?.into()),
 				MomentField::Happenings => {
-					happenings = Some(
-						map.next_value_seed(SceneMapDeserializer {
-							registry: self.registry,
-						})?
-						.into_iter()
-						.map(|entry| {
-							let type_info = entry.get_represented_type_info().ok_or_else(|| {
-								A::Error::custom(format!(
-									"missing represented TypeInfo for {entry:?}"
-								))
-							})?;
-							let registration =
-								self.registry.get(type_info.type_id()).ok_or_else(|| {
-									A::Error::custom(format!(
-										"missing TypeRegistration for {entry:?}"
-									))
-								})?;
-							let reflect_do = registration.data::<ReflectDo>().ok_or_else(|| {
-								A::Error::custom(format!(
-									"missing `ReflectDo` registration for {entry:?}"
-								))
-							})?;
-							reflect_do.get_boxed(entry).map_err(|entry| {
-								A::Error::custom(format!(
-									"failed to get Box<dyn Do> for {entry:?}))"
-								))
-							})
-						})
-						.collect::<Result<_, _>>()?,
-					)
+					happenings = Some(map.next_value_seed(HappeningsDeserializer {
+						registry: self.registry,
+					})?)
+				}
+				MomentField::Disabled => {
+					disabled = map.next_value()?;
 				}
 			}
 		}
@@ -424,6 +451,128 @@ impl<'a, 'de> Visitor<'de> for MomentVisitor<'a> {
 			label,
 			desc,
 			happenings: happenings.unwrap_or_default(),
+			disabled,
+		})
+	}
+}
+
+pub struct HappeningsDeserializer<'a> {
+	pub registry: &'a TypeRegistry,
+}
+
+impl<'a, 'de> DeserializeSeed<'de> for HappeningsDeserializer<'a> {
+	type Value = Vec<Happenings>;
+
+	fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+	where
+		D: Deserializer<'de>,
+	{
+		deserializer.deserialize_seq(HappeningsVisitor {
+			registry: self.registry,
+		})
+	}
+}
+
+pub struct HappeningsVisitor<'a> {
+	pub registry: &'a TypeRegistry,
+}
+
+impl<'a, 'de> Visitor<'de> for HappeningsVisitor<'a> {
+	type Value = Vec<Happenings>;
+
+	fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
+		formatter.write_str("A sequence of Happenings")
+	}
+
+	fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+	where
+		A: SeqAccess<'de>,
+	{
+		let mut ret = Vec::new();
+
+		while let Some(happenings) = seq.next_element_seed(HappeningsMapDeserializer {
+			registry: self.registry,
+		})? {
+			ret.push(happenings);
+		}
+
+		Ok(ret)
+	}
+}
+
+pub struct HappeningsMapDeserializer<'a> {
+	pub registry: &'a TypeRegistry,
+}
+
+impl<'a, 'de> DeserializeSeed<'de> for HappeningsMapDeserializer<'a> {
+	type Value = Happenings;
+
+	fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+	where
+		D: Deserializer<'de>,
+	{
+		deserializer.deserialize_map(HappeningsMapVisitor {
+			registry: self.registry,
+		})
+	}
+}
+pub struct HappeningsMapVisitor<'a> {
+	pub registry: &'a TypeRegistry,
+}
+
+impl<'a, 'de> Visitor<'de> for HappeningsMapVisitor<'a> {
+	type Value = Happenings;
+
+	fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
+		formatter.write_str("a map of `TypePath`s => `Do` implementors")
+	}
+
+	fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+	where
+		A: MapAccess<'de>,
+	{
+		let mut actions = Vec::new();
+		let mut disabled = false;
+		let mut label = None;
+
+		while let Some(key) = map.next_key()? {
+			if key == "DISABLED" {
+				disabled = map.next_value()?;
+				continue;
+			}
+
+			if key == "LABEL" {
+				label = Some(map.next_value()?);
+				continue;
+			}
+
+			let reg = self
+				.registry
+				.get_with_type_path(key)
+				.ok_or_else(|| Error::custom(format_args!("No registration found for `{key}`")))?;
+
+			let entry = map.next_value_seed(TypedReflectDeserializer::new(reg, self.registry))?;
+
+			let type_info = entry.get_represented_type_info().ok_or_else(|| {
+				A::Error::custom(format!("missing represented TypeInfo for {entry:?}"))
+			})?;
+			let registration = self.registry.get(type_info.type_id()).ok_or_else(|| {
+				A::Error::custom(format!("missing TypeRegistration for {entry:?}"))
+			})?;
+			let reflect_do = registration.data::<ReflectDo>().ok_or_else(|| {
+				A::Error::custom(format!("missing `ReflectDo` registration for {entry:?}"))
+			})?;
+			let action = reflect_do.get_boxed(entry).map_err(|entry| {
+				A::Error::custom(format!("failed to get Box<dyn Do> for {entry:?}))"))
+			})?;
+
+			actions.push(action);
+		}
+
+		Ok(Happenings {
+			label,
+			actions,
+			disabled,
 		})
 	}
 }

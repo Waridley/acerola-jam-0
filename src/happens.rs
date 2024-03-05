@@ -1,5 +1,8 @@
-use crate::data::tl::{AssetServerExt, PortalTo, ReflectDo, TPath};
-use bevy::{asset::AssetPath, ecs::system::Command, prelude::*};
+use crate::data::{
+	tl::{AssetServerExt, MomentRef, PortalTo, ReflectDo, TPath, Timeline},
+	Str,
+};
+use bevy::{asset::AssetPath, ecs::system::Command, prelude::*, utils::HashMap};
 use bevy_xpbd_3d::{
 	parry::shape::SharedShape,
 	prelude::{Collider, Sensor},
@@ -10,7 +13,8 @@ pub struct HappeningsPlugin;
 
 impl Plugin for HappeningsPlugin {
 	fn build(&self, app: &mut App) {
-		app.register_type::<SpawnPortalTo>();
+		app.register_type::<SpawnPortalTo>()
+			.register_type::<ModifyTimeline>();
 	}
 }
 
@@ -87,5 +91,81 @@ impl Command for SpawnDynamicScene {
 	fn apply(self, world: &mut World) {
 		let handle = world.resource::<AssetServer>().load(self.scene);
 		world.resource_mut::<SceneSpawner>().spawn_dynamic(handle);
+	}
+}
+
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
+#[reflect(Serialize, Deserialize, Do)]
+#[type_path = "happens"]
+pub struct ModifyTimeline(Vec<TimelineCommand>);
+
+impl Command for ModifyTimeline {
+	fn apply(self, world: &mut World) {
+		for command in self.0 {
+			let srv = world.resource::<AssetServer>();
+			let Some(id) = srv.get_path_id(command.path.clone()) else {
+				error!("Missing timeline for {}", &command.path);
+				continue;
+			};
+			let id = id.typed::<Timeline>();
+			let mut timelines = world.resource_mut::<Assets<Timeline>>();
+			let Some(tl) = timelines.get_mut(id) else {
+				error!("Timeline {id} not found");
+				continue;
+			};
+			for update in command.timeline_updates {
+				let Some(moment) = tl.get_moment_mut(&update.moment) else {
+					error!("Moment {:?} not found", &update.moment);
+					continue;
+				};
+				if let Some(setter) = update.disabled {
+					setter.apply_to(&mut moment.disabled)
+				}
+				for (label, update) in update.happenings {
+					let Some(happenings) = moment
+						.happenings
+						.iter_mut()
+						.find(|happenings| happenings.label.as_deref() == Some(&label))
+					else {
+						error!("Happenings {label} not found");
+						continue;
+					};
+					update.apply_to(&mut happenings.disabled);
+				}
+			}
+		}
+	}
+}
+
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
+#[reflect(Serialize, Deserialize)]
+pub struct TimelineCommand {
+	pub path: AssetPath<'static>,
+	pub timeline_updates: Vec<MomentUpdate>,
+}
+
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
+#[reflect(Serialize, Deserialize)]
+pub struct MomentUpdate {
+	pub moment: MomentRef,
+	#[serde(default)]
+	pub disabled: Option<SetDisabled>,
+	#[serde(default)]
+	pub happenings: HashMap<Str, SetDisabled>,
+}
+
+#[derive(Debug, Copy, Clone, Reflect, Serialize, Deserialize)]
+#[reflect(Serialize, Deserialize)]
+pub enum SetDisabled {
+	Set { disabled: bool },
+	Toggle,
+}
+
+impl SetDisabled {
+	pub fn apply_to(self, flag: &mut bool) {
+		match self {
+			SetDisabled::Set { disabled } => *flag = disabled,
+			SetDisabled::Toggle => *flag = !*flag,
+		}
 	}
 }
