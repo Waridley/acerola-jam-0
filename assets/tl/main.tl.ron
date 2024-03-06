@@ -1,37 +1,50 @@
+#![enable(implicit_some)]
 (
 	moments: {
-		"4s": (
-			label: "print_hello",
-			desc: "Prints 'Hello!' after 4 seconds",
-			happenings: [{
-				"happens::Print": (
-					msg: "Hello!",
-				),
-			}],
-		),
-		"20s": (
-			label: "1_score_seconds",
-			happenings: [{
-				"happens::Print": (
-					msg: "20 seconds have passed",
-				),
-			}],
-		),
-		"27s": (
-			label: "shouldn't_happen",
-			happenings: [{
-				"happens::Print": (
-					msg: "Oops! This should have been disabled!",
-				)
-			}]
-		),
-		"1m": (
+		"30s": (
 			label: "despawn_orb",
 			happenings: [{
 				"happens::Despawn": (
 					entity: "Orb",
 				),
+				// Disable portal spawning unless this event is disabled
+				"happens::ModifyTimeline": ([
+					(
+						path: "tl/main.tl.ron",
+						timeline_updates: [
+							(
+								moment: Labelled("open_orb_portal"),
+								disabled: Set( disabled: true ),
+							),
+						],
+					),
+				]),
 			}],
 		),
+		"45s": (
+			label: "open_orb_portal",
+			happenings: [{
+				// Swap out for portal
+				"happens::Despawn": (
+					entity: "Orb",
+				),
+				"happens::SpawnPortalTo": (
+					target: ("tl/main.tl.ron", "1m15s"),
+					sensor: ( radius: 0.5 ),
+					transform: (
+						translation: (0.0, 0.0, 0.75),
+						rotation: (0.0, 0.0, 0.0, 1.0),
+						scale: (1.0, 1.0, 1.0),
+					)
+				),
+			}]
+		),
+		"1m": (
+			label: "reset_loop",
+			happenings: [{
+				"happens::Print": (msg: "resetting loop!"),
+				"happens::ResetLoop": (),
+			}]
+		)
 	}
 )

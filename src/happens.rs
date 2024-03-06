@@ -15,7 +15,8 @@ impl Plugin for HappeningsPlugin {
 	fn build(&self, app: &mut App) {
 		app.register_type::<SpawnPortalTo>()
 			.register_type::<ModifyTimeline>()
-			.register_type::<Despawn>();
+			.register_type::<Despawn>()
+			.register_type::<ResetLoop>();
 	}
 }
 
@@ -190,16 +191,17 @@ impl Command for Despawn {
 		let mut parts = self.entity.parts.into_iter();
 		let Some(mut curr) = parts.next() else {
 			error!("entity path is empty");
-			return
+			return;
 		};
-		let Some((mut id, _, mut children)) = q.iter(world).find(|(_, name, _)| *name == &curr) else {
+		let Some((mut id, _, mut children)) = q.iter(world).find(|(_, name, _)| *name == &curr)
+		else {
 			error!("Missing entity {curr}");
-			return
+			return;
 		};
 		for name in parts {
 			let Some(kids) = children else {
 				error!("Entity {curr} has no children");
-				return
+				return;
 			};
 			curr = name.clone();
 			for child in kids.into_iter().copied() {
@@ -207,11 +209,22 @@ impl Command for Despawn {
 					if *child.1 == name {
 						id = child.0;
 						children = child.2;
-						break
+						break;
 					}
 				}
 			}
 		}
 		world.despawn(id);
+	}
+}
+
+#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
+#[reflect(Do, Serialize, Deserialize)]
+#[type_path = "happens"]
+pub struct ResetLoop {}
+
+impl Command for ResetLoop {
+	fn apply(self, _world: &mut World) {
+		todo!()
 	}
 }

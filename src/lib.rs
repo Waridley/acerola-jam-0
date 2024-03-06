@@ -2,7 +2,10 @@ use crate::{
 	cam::CamPlugin,
 	happens::HappeningsPlugin,
 	player::PlayerPlugin,
-	scn::clock::{tick_hand, ClockScene, Hand},
+	scn::{
+		clock::{tick_hand, ClockScene, Hand},
+		intro::IntroPlugin,
+	},
 };
 use bevy::{
 	pbr::{CascadeShadowConfigBuilder, NotShadowCaster},
@@ -60,6 +63,7 @@ impl Plugin for GamePlugin {
 			HappeningsPlugin,
 			TimeGraphPlugin,
 			PlayerPlugin,
+			IntroPlugin,
 		))
 		.add_systems(Startup, setup)
 		.add_systems(Update, tick_hand)

@@ -28,8 +28,7 @@ pub struct TimeDataPlugin;
 
 impl Plugin for TimeDataPlugin {
 	fn build(&self, app: &mut App) {
-		app.init_resource::<TimeLoop>()
-			.init_asset::<Timeline>()
+		app.init_asset::<Timeline>()
 			.register_type::<Print>()
 			.register_type::<LoopTime>()
 			.register_type::<T>()
@@ -55,6 +54,9 @@ impl Plugin for TimeDataPlugin {
 
 		let main = assets.load("tl/main.tl.ron");
 		let test_branch = assets.load("tl/test_branch.tl.ron");
+		app.insert_resource(TimeLoop {
+			curr: T(main.id(), default()),
+		});
 		app.insert_resource(LoadedTimelines(vec![main, test_branch]));
 	}
 }
@@ -577,9 +579,9 @@ impl<'a, 'de> Visitor<'de> for HappeningsMapVisitor<'a> {
 	}
 }
 
-#[derive(Resource, Default, Debug, Reflect)]
+#[derive(Resource, Debug, Reflect)]
 pub struct TimeLoop {
-	pub curr: LoopTime,
+	pub curr: T,
 }
 
 /// Mainly keeps timeline strong handles alive.

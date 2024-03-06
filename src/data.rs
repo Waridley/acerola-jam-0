@@ -191,10 +191,9 @@ impl Serialize for Str {
 }
 
 pub mod entity_path_str {
-	use bevy::animation::EntityPath;
-	use bevy::core::Name;
+	use bevy::{animation::EntityPath, core::Name};
 	use serde::{Deserialize, Deserializer, Serializer};
-	
+
 	pub fn serialize<S: Serializer>(path: &EntityPath, serializer: S) -> Result<S::Ok, S::Error> {
 		let mut s = String::new();
 		for part in &path.parts {
@@ -203,7 +202,7 @@ pub mod entity_path_str {
 		}
 		serializer.serialize_str(&s)
 	}
-	
+
 	pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<EntityPath, D::Error> {
 		let s = <&'de str as Deserialize<'de>>::deserialize(deserializer)?;
 		let parts = s.split('.').map(Name::from).collect();

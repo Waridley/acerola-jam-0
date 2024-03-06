@@ -1,15 +1,19 @@
-use crate::data::{
-	tl::{TimeLoop, Timeline},
-	Str,
+use crate::{
+	data::{
+		tl::{PortalTo, TimeLoop, Timeline},
+		Str,
+	},
+	player::player_entity::Root,
 };
 use bevy::{prelude::*, utils::intern::Interned};
+use bevy_xpbd_3d::prelude::CollidingEntities;
+use sond_bevy_enum_components::WithVariant;
 
 pub struct TimeGraphPlugin;
 
 impl Plugin for TimeGraphPlugin {
 	fn build(&self, app: &mut App) {
-		app.init_resource::<TimeLoop>()
-			.add_systems(PreUpdate, step_loop)
+		app.add_systems(PreUpdate, (step_loop, take_portal))
 			.add_systems(Update, print_timelines);
 	}
 }
@@ -21,18 +25,18 @@ pub fn step_loop(
 	asrv: Res<AssetServer>,
 	t: Res<Time>,
 ) {
-	let prev = tloop.curr;
-	*tloop.curr += t.delta();
+	let prev = tloop.curr.1;
+	*tloop.curr.1 += t.delta();
 	for (id, tl) in timelines.iter() {
 		let path = asrv
 			.get_path(id)
 			.map_or_else(String::new, |path| format!("{path}: "));
 		if let Some(branch_from) = tl.branch_from.as_ref() {
-			if (prev..tloop.curr).contains(&branch_from.1) {
+			if (prev..tloop.curr.1).contains(&branch_from.1) {
 				info!(target: "time_graph", "{path}: branching from {branch_from:?}")
 			}
 		}
-		for (lt, mom) in tl.moments.range(prev..=tloop.curr) {
+		for (lt, mom) in tl.moments.range(prev..=tloop.curr.1) {
 			if mom.disabled {
 				debug!(target: "time_graph", "[disabled] {}@{lt}", mom.label.unwrap_or(Str(Interned(""))));
 				continue;
@@ -52,7 +56,7 @@ pub fn step_loop(
 			}
 		}
 		if let Some(merge_into) = tl.merge_into.as_ref() {
-			if (prev..tloop.curr).contains(&merge_into.1) {
+			if (prev..tloop.curr.1).contains(&merge_into.1) {
 				debug!(target: "time_graph", "{path}: merging into {merge_into:?}")
 			}
 		}
@@ -71,6 +75,21 @@ pub fn print_timelines(mut events: EventReader<AssetEvent<Timeline>>, assets: Re
 				let path = path.as_deref().unwrap_or("");
 				debug!("{path}: {ev:?}");
 			}
+		}
+	}
+}
+
+pub fn take_portal(
+	player: Query<&CollidingEntities, WithVariant<Root>>,
+	portals: Query<&PortalTo>,
+	mut tl: ResMut<TimeLoop>,
+) {
+	let Ok(colliding) = player.get_single() else {
+		return;
+	};
+	for id in colliding.iter().copied() {
+		if let Ok(portal) = portals.get(id) {
+			tl.curr = portal.0;
 		}
 	}
 }
