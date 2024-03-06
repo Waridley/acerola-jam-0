@@ -180,20 +180,38 @@ impl SetDisabled {
 #[reflect(Do, Serialize, Deserialize)]
 #[type_path = "happens"]
 pub struct Despawn {
-	entity: Name,
+	#[serde(with = "crate::data::entity_path_str")]
+	entity: EntityPath,
 }
 
 impl Command for Despawn {
 	fn apply(self, world: &mut World) {
-		let mut q = world.query::<(Entity, &Name)>();
-		let mut ids = Vec::new();
-		for (id, name) in q.iter(world) {
-			if name == &self.entity {
-				ids.push(id);
+		let mut q = world.query::<(Entity, &Name, Option<&Children>)>();
+		let mut parts = self.entity.parts.into_iter();
+		let Some(mut curr) = parts.next() else {
+			error!("entity path is empty");
+			return
+		};
+		let Some((mut id, _, mut children)) = q.iter(world).find(|(_, name, _)| *name == &curr) else {
+			error!("Missing entity {curr}");
+			return
+		};
+		for name in parts {
+			let Some(kids) = children else {
+				error!("Entity {curr} has no children");
+				return
+			};
+			curr = name.clone();
+			for child in kids.into_iter().copied() {
+				if let Ok(child) = q.get(world, child) {
+					if *child.1 == name {
+						id = child.0;
+						children = child.2;
+						break
+					}
+				}
 			}
 		}
-		for id in ids {
-			world.despawn(id);
-		}
+		world.despawn(id);
 	}
 }
