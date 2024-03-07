@@ -647,6 +647,16 @@ pub struct PortalTo(pub T);
 pub struct Trigger {
 	#[serde(with = "do_list_serde")]
 	pub causes: DoList,
+	#[serde(default)]
+	pub kind: TriggerKind,
+}
+
+#[derive(Reflect, Copy, Clone, Default, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[reflect(Serialize, Deserialize)]
+pub enum TriggerKind {
+	#[default]
+	Enter,
+	Interact,
 }
 
 pub mod do_list_serde {

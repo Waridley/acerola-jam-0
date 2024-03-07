@@ -73,6 +73,8 @@ pub fn spawn_player(
 		(Action::Jump, KeyCode::Space.into()),
 		(Action::Jump, KeyCode::Backspace.into()),
 		(Action::Dash, GamepadButtonType::RightTrigger2.into()),
+		(Action::Interact, KeyCode::KeyE.into()),
+		(Action::Interact, GamepadButtonType::East.into()),
 	]);
 
 	let layout = TextureAtlasLayout::from_grid(Vec2::new(256.0, 512.0), 4, 4, None, None);
@@ -138,6 +140,7 @@ pub enum Action {
 	Move,
 	Jump,
 	Dash,
+	Interact,
 }
 
 pub fn move_player(

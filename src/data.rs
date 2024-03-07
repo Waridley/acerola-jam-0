@@ -1,5 +1,6 @@
 use crate::scn::spawn_environment;
 use bevy::{
+	asset::AssetPath,
 	ecs::system::SystemId,
 	prelude::{Deref, TypePath, *},
 	reflect::{
@@ -16,6 +17,7 @@ use std::{
 	any::Any,
 	fmt,
 	fmt::{Display, Formatter},
+	marker::PhantomData,
 };
 
 pub mod cam;
@@ -26,7 +28,9 @@ pub struct DataPlugin;
 
 impl Plugin for DataPlugin {
 	fn build(&self, app: &mut App) {
-		app.add_plugins((tl::TimeDataPlugin, phys::PhysDataPlugin));
+		app.register_type::<LoadAsset<Image>>()
+			.add_systems(Last, replace_paths_with_handles::<Image>)
+			.add_plugins((tl::TimeDataPlugin, phys::PhysDataPlugin));
 	}
 }
 
@@ -226,5 +230,25 @@ impl FromWorld for SystemRegistry {
 			spawn_env,
 			dynamic: default(),
 		}
+	}
+}
+
+#[derive(Component, Reflect, Clone, Debug, Deref, DerefMut, Serialize, Deserialize)]
+#[reflect(Serialize, Deserialize)]
+pub struct LoadAsset<T: Asset>(
+	#[deref] pub AssetPath<'static>,
+	#[reflect(ignore)]
+	#[serde(default)]
+	PhantomData<T>,
+);
+
+pub fn replace_paths_with_handles<T: Asset>(
+	mut cmds: Commands,
+	q: Query<(Entity, &LoadAsset<T>)>,
+	srv: Res<AssetServer>,
+) {
+	for (id, LoadAsset(path, _)) in &q {
+		let handle = srv.load::<T>(path);
+		cmds.entity(id).insert(handle).remove::<LoadAsset<T>>();
 	}
 }

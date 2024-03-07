@@ -1,12 +1,13 @@
 use crate::{
 	data::{
-		tl::{PortalTo, TimeLoop, Timeline, Trigger},
+		tl::{PortalTo, TimeLoop, Timeline, Trigger, TriggerKind},
 		Str,
 	},
-	player::player_entity::Root,
+	player::{player_entity::Root, Action},
 };
 use bevy::{prelude::*, utils::intern::Interned};
 use bevy_xpbd_3d::prelude::CollidingEntities;
+use leafwing_input_manager::prelude::ActionState;
 use sond_bevy_enum_components::WithVariant;
 
 pub struct TimeGraphPlugin;
@@ -96,15 +97,18 @@ pub fn take_portal(
 
 pub fn check_triggers(
 	mut cmds: Commands,
-	player: Query<&CollidingEntities, WithVariant<Root>>,
-	prevention_button: Query<&Trigger>,
+	player: Query<(&CollidingEntities, &ActionState<Action>), WithVariant<Root>>,
+	triggers: Query<&Trigger>,
 ) {
-	let Ok(player) = player.get_single() else {
+	let Ok((colliding, inputs)) = player.get_single() else {
 		return;
 	};
 
-	for id in player.iter().copied() {
-		if let Ok(trigger) = prevention_button.get(id) {
+	for id in colliding.iter().copied() {
+		if let Ok(trigger) = triggers.get(id) {
+			if trigger.kind == TriggerKind::Interact && !inputs.just_pressed(&Action::Interact) {
+				continue;
+			}
 			for to_do in trigger.causes.iter() {
 				to_do.apply(cmds.reborrow());
 			}

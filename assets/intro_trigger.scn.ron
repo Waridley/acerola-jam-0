@@ -3,19 +3,22 @@
 	entities: {
 		4294967296: (
 			components: {
-				"sonday_acerola_jam_0::data::tl::Trigger": ( causes: {
-					"happens::ModifyTimeline": [
-						(
-							path: "tl/main.tl.ron",
-							updates: [
-								(
-									moment: Labelled("despawn_orb"),
-									disabled: Set( disabled: true ),
-								),
-							]
-						)
-					],
-				}),
+				"sonday_acerola_jam_0::data::tl::Trigger": (
+					causes: {
+						"happens::ModifyTimeline": [
+							(
+								path: "tl/main.tl.ron",
+								updates: [
+									(
+										moment: Labelled("despawn_orb"),
+										disabled: Set( disabled: true ),
+									),
+								]
+							)
+						],
+					},
+					kind: Interact,
+				),
 				"sonday_acerola_jam_0::data::phys::ColliderShape": Cylinder( half_height: 0.5, radius: 0.5 ),
 				"bevy_transform::components::transform::Transform": (
 					translation: ( x: -4.0, y: 0.0, z: 0.0 ),
@@ -30,6 +33,7 @@
 					),
 					translation: ( x: 0.0, y: 0.0, z: 0.0 ),
 				)),
+				"sonday_acerola_jam_0::scn::Resettable": (),
 			}
 		),
 	},

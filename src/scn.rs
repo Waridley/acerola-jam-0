@@ -14,7 +14,9 @@ pub struct EnvironmentPlugin;
 
 impl Plugin for EnvironmentPlugin {
 	fn build(&self, app: &mut App) {
-		app.add_systems(Startup, setup).add_plugins(IntroPlugin);
+		app.register_type::<Resettable>()
+			.add_systems(Startup, setup)
+			.add_plugins(IntroPlugin);
 	}
 
 	fn finish(&self, app: &mut App) {
