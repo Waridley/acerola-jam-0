@@ -42,7 +42,8 @@ impl Plugin for TimeDataPlugin {
 			.register_type::<TimeLoop>()
 			.register_type::<(AssetPath<'static>, T)>()
 			.register_type::<PortalPath>()
-			.register_type::<PortalTo>();
+			.register_type::<PortalTo>()
+			.register_type::<Trigger>();
 	}
 
 	fn finish(&self, app: &mut App) {
@@ -641,19 +642,22 @@ impl AssetServerExt for AssetServer {
 #[derive(Component, Debug, Reflect)]
 pub struct PortalTo(pub T);
 
-#[derive(Component, Reflect, Default, Clone, Deserialize)]
-#[reflect(Component, Deserialize)]
+#[derive(Component, Reflect, Default, Clone, Serialize, Deserialize)]
+#[reflect(Component, Serialize, Deserialize)]
 pub struct Trigger {
-	#[serde(deserialize_with = "do_list_serde::deserialize")]
+	#[serde(with = "do_list_serde")]
 	pub causes: DoList,
 }
 
 pub mod do_list_serde {
 	use super::{do_from_reflect, DoList};
-	use bevy::{reflect::TypeRegistry, scene::serde::SceneMapDeserializer};
+	use bevy::{
+		reflect::TypeRegistry,
+		scene::serde::{SceneMapDeserializer, SceneMapSerializer},
+	};
 	use serde::{
 		de::{DeserializeSeed, Error},
-		Deserializer,
+		Deserializer, Serialize, Serializer,
 	};
 
 	pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<DoList, D::Error> {
@@ -662,6 +666,20 @@ pub mod do_list_serde {
 			registry: &registry,
 		}
 		.deserialize(deserializer)
+	}
+
+	pub fn serialize<S: Serializer>(list: &DoList, serializer: S) -> Result<S::Ok, S::Error> {
+		let registry = crate::type_registry();
+		let entries = list
+			.0
+			.iter()
+			.map(|item| item.clone_value())
+			.collect::<Vec<_>>();
+		SceneMapSerializer {
+			entries: &entries,
+			registry,
+		}
+		.serialize(serializer)
 	}
 
 	pub struct DoListDeserializer<'a> {
@@ -709,6 +727,17 @@ pub fn do_from_reflect(
 	};
 
 	reflect_do.get_boxed(entry)
+}
+
+pub fn do_ref_from_reflect<'a>(
+	entry: &'a dyn Reflect,
+	registry: &TypeRegistry,
+) -> Option<&'a dyn Do> {
+	let type_info = entry.get_represented_type_info()?;
+	let registration = registry.get(type_info.type_id())?;
+	let reflect_do = registration.data::<ReflectDo>()?;
+
+	reflect_do.get(entry)
 }
 
 #[derive(TypePath, Default, Deref, DerefMut)]
@@ -819,15 +848,15 @@ impl FromReflect for DoList {
 		Some(Self(
 			list.iter()
 				.flat_map(|item| {
-					do_from_reflect(item.clone_value(), &crate::type_registry().read())
-						.map_err(|e| {
+					do_ref_from_reflect(item, &crate::type_registry().read())
+						.or_else(|| {
 							error!(
 								"{} couldn't be downcast to `Box<dyn Do>`",
-								e.reflect_type_path()
+								item.reflect_type_path()
 							);
-							e
+							None
 						})
-						.ok()
+						.map(|item| item.clone_do())
 				})
 				.collect(),
 		))

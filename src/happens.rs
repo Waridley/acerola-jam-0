@@ -24,6 +24,8 @@ impl Plugin for HappeningsPlugin {
 	fn build(&self, app: &mut App) {
 		app.register_type::<SpawnTrigger>()
 			.register_type::<SpawnPortalTo>()
+			.register_type::<SpawnScene>()
+			.register_type::<SpawnDynamicScene>()
 			.register_type::<ModifyTimeline>()
 			.register_type::<Despawn>()
 			.register_type::<ResetLoop>();
@@ -109,29 +111,29 @@ impl Command for SpawnPortalTo {
 }
 
 #[derive(Reflect, Debug, Clone, Serialize, Deserialize)]
-#[reflect(Serialize, Deserialize)]
+#[reflect(Do, Serialize, Deserialize)]
 #[type_path = "happens"]
 pub struct SpawnScene {
-	pub scene: AssetPath<'static>,
+	pub path: AssetPath<'static>,
 }
 
 impl Command for SpawnScene {
 	fn apply(self, world: &mut World) {
-		let handle = world.resource::<AssetServer>().load(self.scene);
+		let handle = world.resource::<AssetServer>().load(self.path);
 		world.resource_mut::<SceneSpawner>().spawn(handle);
 	}
 }
 
 #[derive(Reflect, Debug, Clone, Serialize, Deserialize)]
-#[reflect(Serialize, Deserialize)]
+#[reflect(Do, Serialize, Deserialize)]
 #[type_path = "happens"]
 pub struct SpawnDynamicScene {
-	pub scene: AssetPath<'static>,
+	pub path: AssetPath<'static>,
 }
 
 impl Command for SpawnDynamicScene {
 	fn apply(self, world: &mut World) {
-		let handle = world.resource::<AssetServer>().load(self.scene);
+		let handle = world.resource::<AssetServer>().load(self.path);
 		world.resource_mut::<SceneSpawner>().spawn_dynamic(handle);
 	}
 }

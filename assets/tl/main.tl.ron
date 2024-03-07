@@ -3,27 +3,9 @@
 	moments: {
 		"5s":(
 			happenings: [{
-				"happens::SpawnTrigger": (
-					trigger: ( causes: {
-						"happens::ModifyTimeline": [
-							(
-								path: "tl/main.tl.ron",
-								updates: [
-									(
-										moment: Labelled("despawn_orb"),
-										disabled: Set( disabled: true ),
-									),
-								]
-							)
-						],
-					}),
-					sensor: Ball(( radius: 0.5 )),
-					transform: (
-						translation: (-4.0, 0.0, 0.0),
-						rotation: (0.0, 0.0, 0.0, 1.0),
-						scale: (1.0, 1.0, 1.0),
-					)
-				)
+				"happens::SpawnDynamicScene": (
+					path: "intro_trigger.scn.ron",
+				),
 			}]
 		),
 		"10s": (
@@ -57,7 +39,7 @@
 					trigger: ( causes: {
 						"happens::Despawn": ( entity: "Walls" ),
 					}),
-					sensor: Ball(( radius: 0.25 )),
+					sensor: Ball( radius: 0.25 ),
 					transform: (
 						translation: (0.0, 0.0, 0.75),
 						rotation: (0.0, 0.0, 0.0, 1.0),
