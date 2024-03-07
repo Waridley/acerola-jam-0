@@ -1,14 +1,19 @@
+use crate::scn::spawn_environment;
 use bevy::{
 	app::App,
+	ecs::system::SystemId,
 	prelude::{
 		Deref, FromReflect, Plugin, Reflect, ReflectDeserialize, ReflectFromReflect,
-		ReflectSerialize, TupleStruct, TypePath,
+		ReflectSerialize, TupleStruct, TypePath, *,
 	},
 	reflect::{
 		DynamicTuple, DynamicTupleStruct, GetTypeRegistration, ReflectFromPtr, ReflectMut,
 		ReflectOwned, ReflectRef, TupleStructFieldIter, TypeInfo, TypeRegistration, Typed,
 	},
-	utils::intern::{Interned, Interner},
+	utils::{
+		intern::{Interned, Interner},
+		HashMap,
+	},
 };
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::{
@@ -207,5 +212,22 @@ pub mod entity_path_str {
 		let s = <&'de str as Deserialize<'de>>::deserialize(deserializer)?;
 		let parts = s.split('.').map(Name::from).collect();
 		Ok(EntityPath { parts })
+	}
+}
+
+#[derive(Resource, Debug, Deref, DerefMut)]
+pub struct SystemRegistry {
+	pub spawn_env: SystemId,
+	#[deref]
+	pub dynamic: HashMap<Str, SystemId>,
+}
+
+impl FromWorld for SystemRegistry {
+	fn from_world(world: &mut World) -> Self {
+		let spawn_env = world.register_system(spawn_environment);
+		Self {
+			spawn_env,
+			dynamic: default(),
+		}
 	}
 }

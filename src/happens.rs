@@ -1,8 +1,19 @@
-use crate::data::{
-	tl::{AssetServerExt, MomentRef, PortalTo, ReflectDo, TPath, Timeline},
-	Str,
+use crate::{
+	data::{
+		tl::{
+			AssetServerExt, LoadedTimelines, MomentRef, PortalTo, ReflectDo, TPath, TimeLoop,
+			Timeline, Trigger,
+		},
+		Str,
+	},
+	scn::{spawn_environment, EnvRoot},
 };
-use bevy::{asset::AssetPath, ecs::system::Command, prelude::*, utils::HashMap};
+use bevy::{
+	asset::{AssetPath, UntypedAssetId},
+	ecs::system::{Command, RunSystemOnce},
+	prelude::*,
+	utils::HashMap,
+};
 use bevy_xpbd_3d::{
 	parry::shape::SharedShape,
 	prelude::{Collider, Sensor},
@@ -13,10 +24,58 @@ pub struct HappeningsPlugin;
 
 impl Plugin for HappeningsPlugin {
 	fn build(&self, app: &mut App) {
-		app.register_type::<SpawnPortalTo>()
+		app.register_type::<SpawnTrigger>()
+			.register_type::<SpawnPortalTo>()
 			.register_type::<ModifyTimeline>()
 			.register_type::<Despawn>()
 			.register_type::<ResetLoop>();
+	}
+}
+
+#[derive(Component, Debug, Default, Clone, Reflect, Serialize, Deserialize)]
+#[reflect(Do, Serialize, Deserialize)]
+#[serde(default)]
+#[type_path = "happens"]
+pub struct TakeBranch(AssetPath<'static>);
+
+impl Command for TakeBranch {
+	fn apply(self, world: &mut World) {
+		let path = self.0.clone();
+		let Some(id) = world
+			.resource::<AssetServer>()
+			.get_path_id(self.0)
+			.map(UntypedAssetId::typed)
+		else {
+			error!("No `AssetId` for {path}");
+			return;
+		};
+		world.resource_mut::<TimeLoop>().curr.0 = id;
+	}
+}
+
+#[derive(Component, Default, Clone, Reflect, Deserialize)]
+#[reflect(Do, Deserialize)]
+#[serde(default)]
+#[type_path = "happens"]
+pub struct SpawnTrigger {
+	pub trigger: Trigger,
+	pub sensor: ReflectBall,
+	pub transform: Transform,
+	pub global_transform: GlobalTransform,
+}
+
+impl Command for SpawnTrigger {
+	fn apply(self, world: &mut World) {
+		world.spawn((
+			TransformBundle {
+				local: self.transform,
+				global: self.global_transform,
+			},
+			Collider::sphere(self.sensor.radius),
+			Sensor,
+			self.trigger,
+			EnvRoot,
+		));
 	}
 }
 
@@ -66,6 +125,7 @@ impl Command for SpawnPortalTo {
 			self.global_transform,
 			Sensor,
 			PortalTo(t),
+			EnvRoot,
 		));
 	}
 }
@@ -101,6 +161,7 @@ impl Command for SpawnDynamicScene {
 #[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
 #[reflect(Serialize, Deserialize, Do)]
 #[type_path = "happens"]
+#[serde(transparent)]
 pub struct ModifyTimeline(Vec<TimelineCommand>);
 
 impl Command for ModifyTimeline {
@@ -117,7 +178,7 @@ impl Command for ModifyTimeline {
 				error!("Timeline {id} not found");
 				continue;
 			};
-			for update in command.timeline_updates {
+			for update in command.updates {
 				let Some(moment) = tl.get_moment_mut(&update.moment) else {
 					error!("Moment {:?} not found", &update.moment);
 					continue;
@@ -146,7 +207,7 @@ impl Command for ModifyTimeline {
 #[type_path = "happens"]
 pub struct TimelineCommand {
 	pub path: AssetPath<'static>,
-	pub timeline_updates: Vec<MomentUpdate>,
+	pub updates: Vec<MomentUpdate>,
 }
 
 #[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
@@ -224,7 +285,22 @@ impl Command for Despawn {
 pub struct ResetLoop {}
 
 impl Command for ResetLoop {
-	fn apply(self, _world: &mut World) {
-		todo!()
+	fn apply(self, world: &mut World) {
+		let timelines = world.resource::<LoadedTimelines>();
+		let srv = world.resource::<AssetServer>();
+		for path in timelines.keys() {
+			srv.reload(path)
+		}
+		let mut tloop = world.resource_mut::<TimeLoop>();
+		tloop.curr.1 = default();
+		let mut q = world.query_filtered::<Entity, With<EnvRoot>>();
+		let mut to_despawn = Vec::new();
+		for id in q.iter(world) {
+			to_despawn.push(id);
+		}
+		for id in to_despawn {
+			world.entity_mut(id).despawn_recursive();
+		}
+		world.run_system_once(spawn_environment);
 	}
 }

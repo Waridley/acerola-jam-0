@@ -5,7 +5,7 @@
 		"17s": (
 			label: "disable_shouldn't_happen",
 			happenings: [{
-				"happens::ModifyTimeline": ([
+				"happens::ModifyTimeline": [
 					(
 						path: "tl/main.tl.ron",
 						timeline_updates: [
@@ -15,7 +15,7 @@
 							),
 						],
 					),
-				]),
+				],
 			}],
 		),
 		"42s": (

@@ -2,7 +2,10 @@ use bevy::{
 	asset::{io::Reader, AssetLoader, AssetPath, AsyncReadExt, BoxedFuture, LoadContext},
 	ecs::system::Command,
 	prelude::*,
-	reflect::{serde::TypedReflectDeserializer, TypeRegistry, TypeRegistryArc},
+	reflect::{
+		serde::TypedReflectDeserializer, List, ListIter, ReflectMut, ReflectOwned, ReflectRef,
+		TypeInfo, TypeRegistry, TypeRegistryArc,
+	},
 	scene::SceneLoaderError,
 };
 use humantime::DurationError;
@@ -11,7 +14,8 @@ use serde::{
 	Deserialize, Deserializer, Serialize, Serializer,
 };
 use std::{
-	borrow::{Borrow, Cow},
+	any::Any,
+	borrow::Cow,
 	collections::BTreeMap,
 	fmt::{Debug, Display, Formatter},
 	ops::{Index, IndexMut},
@@ -19,7 +23,7 @@ use std::{
 	time::Duration,
 };
 
-use bevy::utils::CowArc;
+use bevy::utils::{CowArc, HashMap};
 
 use super::Str;
 use serde::de::SeqAccess;
@@ -35,7 +39,6 @@ impl Plugin for TimeDataPlugin {
 			.register_type::<TPath>()
 			.register_type::<Str>()
 			.register_type::<MomentRef>()
-			.register_type::<Print>()
 			.register_type::<TimeLoop>()
 			.register_type::<(AssetPath<'static>, T)>()
 			.register_type::<PortalPath>()
@@ -52,12 +55,16 @@ impl Plugin for TimeDataPlugin {
 
 		let assets = app.world.resource::<AssetServer>();
 
-		let main = assets.load("tl/main.tl.ron");
-		let test_branch = assets.load("tl/test_branch.tl.ron");
+		let main_path = AssetPath::from("tl/main.tl.ron");
+		let main = assets.load(main_path.clone());
+		let test_path = AssetPath::from("tl/test_branch.tl.ron");
+		let test_branch = assets.load(test_path.clone());
 		app.insert_resource(TimeLoop {
 			curr: T(main.id(), default()),
 		});
-		app.insert_resource(LoadedTimelines(vec![main, test_branch]));
+		app.insert_resource(LoadedTimelines(
+			[(main_path, main), (test_path, test_branch)].into(),
+		));
 	}
 }
 
@@ -84,7 +91,7 @@ impl<'de> Deserialize<'de> for LoopTime {
 		D: Deserializer<'de>,
 	{
 		Self::from_str(<&str as Deserialize<'de>>::deserialize(deserializer)?)
-			.map_err(|e| Error::custom(format!("{e}")))
+			.map_err(|e| Error::custom(format_args!("{e}")))
 	}
 }
 
@@ -207,13 +214,18 @@ impl IndexMut<T> for Assets<Timeline> {
 }
 
 #[reflect_trait]
-pub trait Do: Send + Sync {
+pub trait Do: Reflect + Send + Sync {
 	fn apply(&self, cmds: Commands);
+	fn clone_do(&self) -> Box<dyn Do>;
 }
 
-impl<C: Command + Borrow<B>, B: ToOwned<Owned = C> + Send + Sync> Do for B {
+impl<T: Command + Clone + Reflect + Send + Sync> Do for T {
 	fn apply(&self, mut cmds: Commands) {
 		cmds.add(self.to_owned())
+	}
+
+	fn clone_do(&self) -> Box<dyn Do> {
+		Box::new(self.clone())
 	}
 }
 
@@ -555,17 +567,8 @@ impl<'a, 'de> Visitor<'de> for HappeningsMapVisitor<'a> {
 
 			let entry = map.next_value_seed(TypedReflectDeserializer::new(reg, self.registry))?;
 
-			let type_info = entry.get_represented_type_info().ok_or_else(|| {
-				A::Error::custom(format!("missing represented TypeInfo for {entry:?}"))
-			})?;
-			let registration = self.registry.get(type_info.type_id()).ok_or_else(|| {
-				A::Error::custom(format!("missing TypeRegistration for {entry:?}"))
-			})?;
-			let reflect_do = registration.data::<ReflectDo>().ok_or_else(|| {
-				A::Error::custom(format!("missing `ReflectDo` registration for {entry:?}"))
-			})?;
-			let action = reflect_do.get_boxed(entry).map_err(|entry| {
-				A::Error::custom(format!("failed to get Box<dyn Do> for {entry:?}))"))
+			let action = do_from_reflect(entry, self.registry).map_err(|e| {
+				Error::custom(format_args!("Failed to downcast {e:?} to `Box<dyn Do>`"))
 			})?;
 
 			actions.push(action);
@@ -586,7 +589,7 @@ pub struct TimeLoop {
 
 /// Mainly keeps timeline strong handles alive.
 #[derive(Resource, Deref, DerefMut)]
-pub struct LoadedTimelines(pub Vec<Handle<Timeline>>);
+pub struct LoadedTimelines(pub HashMap<AssetPath<'static>, Handle<Timeline>>);
 
 /// Static, \[de]serializable time portal definition
 #[derive(Reflect, Clone, Debug, Serialize, Deserialize)]
@@ -637,3 +640,234 @@ impl AssetServerExt for AssetServer {
 
 #[derive(Component, Debug, Reflect)]
 pub struct PortalTo(pub T);
+
+#[derive(Component, Reflect, Default, Clone, Deserialize)]
+#[reflect(Component, Deserialize)]
+pub struct Trigger {
+	#[serde(deserialize_with = "do_list_serde::deserialize")]
+	pub causes: DoList,
+}
+
+pub mod do_list_serde {
+	use super::{do_from_reflect, DoList};
+	use bevy::{reflect::TypeRegistry, scene::serde::SceneMapDeserializer};
+	use serde::{
+		de::{DeserializeSeed, Error},
+		Deserializer,
+	};
+
+	pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<DoList, D::Error> {
+		let registry = crate::type_registry().read();
+		DoListDeserializer {
+			registry: &registry,
+		}
+		.deserialize(deserializer)
+	}
+
+	pub struct DoListDeserializer<'a> {
+		pub registry: &'a TypeRegistry,
+	}
+
+	impl<'a, 'de> DeserializeSeed<'de> for DoListDeserializer<'a> {
+		type Value = DoList;
+
+		fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+		where
+			D: Deserializer<'de>,
+		{
+			SceneMapDeserializer {
+				registry: self.registry,
+			}
+			.deserialize(deserializer)?
+			.into_iter()
+			.map(|entry| {
+				do_from_reflect(entry, self.registry).map_err(|e| {
+					Error::custom(format_args!(
+						"failed to downcast {:?} to `Box<dyn Do>`",
+						e.get_represented_type_info()
+					))
+				})
+			})
+			.collect::<Result<Vec<_>, _>>()
+			.map(DoList)
+		}
+	}
+}
+
+pub fn do_from_reflect(
+	entry: Box<dyn Reflect>,
+	registry: &TypeRegistry,
+) -> Result<Box<dyn Do>, Box<dyn Reflect>> {
+	let Some(type_info) = entry.get_represented_type_info() else {
+		return Err(entry);
+	};
+	let Some(registration) = registry.get(type_info.type_id()) else {
+		return Err(entry);
+	};
+	let Some(reflect_do) = registration.data::<ReflectDo>() else {
+		return Err(entry);
+	};
+
+	reflect_do.get_boxed(entry)
+}
+
+#[derive(TypePath, Default, Deref, DerefMut)]
+pub struct DoList(pub Vec<Box<dyn Do>>);
+
+impl Debug for DoList {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		self.0
+			.iter()
+			.map(|item| item.as_reflect())
+			.collect::<Vec<_>>()
+			.fmt(f)
+	}
+}
+
+impl Clone for DoList {
+	fn clone(&self) -> Self {
+		Self(self.0.iter().map(|item| item.clone_do()).collect())
+	}
+}
+
+impl Reflect for DoList {
+	fn get_represented_type_info(&self) -> Option<&'static TypeInfo> {
+		None
+	}
+
+	fn into_any(self: Box<Self>) -> Box<dyn Any> {
+		self
+	}
+
+	fn as_any(&self) -> &dyn Any {
+		self
+	}
+
+	fn as_any_mut(&mut self) -> &mut dyn Any {
+		self
+	}
+
+	fn into_reflect(self: Box<Self>) -> Box<dyn Reflect> {
+		self
+	}
+
+	fn as_reflect(&self) -> &dyn Reflect {
+		self
+	}
+
+	fn as_reflect_mut(&mut self) -> &mut dyn Reflect {
+		self
+	}
+
+	fn apply(&mut self, value: &dyn Reflect) {
+		let ReflectRef::List(value) = value.reflect_ref() else {
+			error!("tried to apply a non-List value to DoList");
+			return;
+		};
+		let shorter = self.0.len().min(value.len());
+		for i in 0..shorter {
+			let val = value
+				.get(i)
+				.expect("value should exist since i < the shortest len")
+				.clone_value();
+			let ty = val.get_represented_type_info();
+			let Ok(val) = do_from_reflect(val, &crate::type_registry().read()) else {
+				error!("failed to downcast {ty:?} to `Box<dyn Do>`");
+				continue;
+			};
+			self.0[i] = val;
+		}
+		if value.len() > self.0.len() {
+			for i in shorter..value.len() {
+				self.push(
+					value
+						.get(i)
+						.expect("value should exist since i < value.len()")
+						.clone_value(),
+				);
+			}
+		}
+	}
+
+	fn set(&mut self, value: Box<dyn Reflect>) -> Result<(), Box<dyn Reflect>> {
+		*self = *value.downcast()?;
+		Ok(())
+	}
+
+	fn reflect_ref(&self) -> ReflectRef {
+		ReflectRef::List(self)
+	}
+
+	fn reflect_mut(&mut self) -> ReflectMut {
+		ReflectMut::List(self)
+	}
+
+	fn reflect_owned(self: Box<Self>) -> ReflectOwned {
+		ReflectOwned::List(self)
+	}
+
+	fn clone_value(&self) -> Box<dyn Reflect> {
+		Box::new(self.clone())
+	}
+}
+
+impl FromReflect for DoList {
+	fn from_reflect(reflect: &dyn Reflect) -> Option<Self> {
+		let ReflectRef::List(list) = reflect.reflect_ref() else {
+			return None;
+		};
+		Some(Self(
+			list.iter()
+				.flat_map(|item| {
+					do_from_reflect(item.clone_value(), &crate::type_registry().read())
+						.map_err(|e| {
+							error!(
+								"{} couldn't be downcast to `Box<dyn Do>`",
+								e.reflect_type_path()
+							);
+							e
+						})
+						.ok()
+				})
+				.collect(),
+		))
+	}
+}
+
+impl List for DoList {
+	fn get(&self, index: usize) -> Option<&dyn Reflect> {
+		self.0.get(index).map(|item| item.as_reflect())
+	}
+
+	fn get_mut(&mut self, index: usize) -> Option<&mut dyn Reflect> {
+		self.0.get_mut(index).map(|item| item.as_reflect_mut())
+	}
+
+	fn insert(&mut self, index: usize, element: Box<dyn Reflect>) {
+		do_from_reflect(element, &crate::type_registry().read()).map_or_else(
+			|e| {
+				error!(
+					"couldn't downcast {} to `Box<dyn Do>`",
+					e.reflect_type_path()
+				)
+			},
+			|item| self.0.insert(index, item),
+		)
+	}
+
+	fn remove(&mut self, index: usize) -> Box<dyn Reflect> {
+		self.0.remove(index).into_reflect()
+	}
+
+	fn len(&self) -> usize {
+		self.0.len()
+	}
+
+	fn iter(&self) -> ListIter {
+		ListIter::new(self)
+	}
+
+	fn drain(self: Box<Self>) -> Vec<Box<dyn Reflect>> {
+		self.0.into_iter().map(|item| item.into_reflect()).collect()
+	}
+}

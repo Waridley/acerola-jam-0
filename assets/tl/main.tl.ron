@@ -1,6 +1,31 @@
 #![enable(implicit_some)]
 (
 	moments: {
+		"15s":(
+			happenings: [{
+				"happens::SpawnTrigger": (
+					trigger: ( causes: {
+						"happens::ModifyTimeline": [
+							(
+								path: "tl/main.tl.ron",
+								updates: [
+									(
+										moment: Labelled("despawn_orb"),
+										disabled: Set( disabled: true ),
+									),
+								]
+							)
+						],
+					}),
+					sensor: ( radius: 0.5 ),
+					transform: (
+						translation: (-4.0, 0.0, 0.0),
+						rotation: (0.0, 0.0, 0.0, 1.0),
+						scale: (1.0, 1.0, 1.0),
+					)
+				)
+			}]
+		),
 		"30s": (
 			label: "despawn_orb",
 			happenings: [{
@@ -8,17 +33,17 @@
 					entity: "Orb",
 				),
 				// Disable portal spawning unless this event is disabled
-				"happens::ModifyTimeline": ([
+				"happens::ModifyTimeline": [
 					(
 						path: "tl/main.tl.ron",
-						timeline_updates: [
+						updates: [
 							(
 								moment: Labelled("open_orb_portal"),
 								disabled: Set( disabled: true ),
 							),
 						],
 					),
-				]),
+				],
 			}],
 		),
 		"45s": (

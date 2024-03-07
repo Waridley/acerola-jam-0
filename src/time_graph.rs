@@ -1,6 +1,6 @@
 use crate::{
 	data::{
-		tl::{PortalTo, TimeLoop, Timeline},
+		tl::{PortalTo, TimeLoop, Timeline, Trigger},
 		Str,
 	},
 	player::player_entity::Root,
@@ -13,7 +13,7 @@ pub struct TimeGraphPlugin;
 
 impl Plugin for TimeGraphPlugin {
 	fn build(&self, app: &mut App) {
-		app.add_systems(PreUpdate, (step_loop, take_portal))
+		app.add_systems(PreUpdate, (step_loop, take_portal, check_triggers))
 			.add_systems(Update, print_timelines);
 	}
 }
@@ -90,6 +90,25 @@ pub fn take_portal(
 	for id in colliding.iter().copied() {
 		if let Ok(portal) = portals.get(id) {
 			tl.curr = portal.0;
+		}
+	}
+}
+
+pub fn check_triggers(
+	mut cmds: Commands,
+	player: Query<&CollidingEntities, WithVariant<Root>>,
+	prevention_button: Query<&Trigger>,
+) {
+	let Ok(player) = player.get_single() else {
+		return;
+	};
+
+	for id in player.iter().copied() {
+		if let Ok(trigger) = prevention_button.get(id) {
+			for to_do in trigger.causes.iter() {
+				to_do.apply(cmds.reborrow());
+			}
+			cmds.entity(id).despawn();
 		}
 	}
 }

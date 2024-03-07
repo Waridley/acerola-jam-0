@@ -1,22 +1,17 @@
 use crate::{
 	cam::CamPlugin,
+	data::SystemRegistry,
 	happens::HappeningsPlugin,
 	player::PlayerPlugin,
 	scn::{
-		clock::{tick_hand, ClockScene, Hand},
-		intro::IntroPlugin,
+		clock::{tick_hand, Hand},
+		EnvironmentPlugin,
 	},
 };
-use bevy::{
-	pbr::{CascadeShadowConfigBuilder, NotShadowCaster},
-	prelude::*,
-};
-use bevy_xpbd_3d::{
-	plugins::PhysicsPlugins,
-	prelude::{Collider, Gravity, RigidBody},
-};
+use bevy::{pbr::CascadeShadowConfigBuilder, prelude::*, reflect::TypeRegistryArc};
+use bevy_xpbd_3d::{plugins::PhysicsPlugins, prelude::Gravity};
 use data::DataPlugin;
-use std::f32::consts::{FRAC_PI_2, FRAC_PI_6};
+use std::{f32::consts::FRAC_PI_6, sync::OnceLock};
 use time_graph::TimeGraphPlugin;
 
 pub mod cam;
@@ -25,6 +20,15 @@ pub mod happens;
 pub mod player;
 pub mod scn;
 pub mod time_graph;
+
+pub static TYPE_REGISTRY: OnceLock<TypeRegistryArc> = OnceLock::new();
+pub fn type_registry() -> &'static TypeRegistryArc {
+	TYPE_REGISTRY
+		.get()
+		.expect("TYPE_REGISTRY should be initialized")
+}
+
+pub static ASSET_SERVER: OnceLock<AssetServer> = OnceLock::new();
 
 pub struct GamePlugin {
 	pub asset_dir: &'static str,
@@ -54,6 +58,13 @@ impl Plugin for GamePlugin {
 			PhysicsPlugins::default(),
 		));
 
+		TYPE_REGISTRY
+			.set(app.world.resource::<AppTypeRegistry>().0.clone())
+			.expect("AppTypeRegistry already set");
+		ASSET_SERVER
+			.set(app.world.resource::<AssetServer>().clone())
+			.expect("AssetServer already set");
+		app.init_resource::<SystemRegistry>();
 		app.insert_resource(Gravity(Vec3::NEG_Z * 9.81));
 
 		// Mine
@@ -63,7 +74,7 @@ impl Plugin for GamePlugin {
 			HappeningsPlugin,
 			TimeGraphPlugin,
 			PlayerPlugin,
-			IntroPlugin,
+			EnvironmentPlugin,
 		))
 		.add_systems(Startup, setup)
 		.add_systems(Update, tick_hand)
@@ -80,10 +91,6 @@ impl Plugin for GamePlugin {
 			)
 			.add_systems(Update, (toggle_projection, toggle_phys_gizmos));
 	}
-
-	fn finish(&self, app: &mut App) {
-		app.init_resource::<ClockScene>();
-	}
 }
 
 #[derive(Resource, Deref, DerefMut)]
@@ -93,9 +100,7 @@ pub fn setup(
 	mut cmds: Commands,
 	assets: Res<AssetServer>,
 	mut scene_spawner: ResMut<SceneSpawner>,
-	mut meshes: ResMut<Assets<Mesh>>,
-	mut mats: ResMut<Assets<StandardMaterial>>,
-	clock: Res<ClockScene>,
+	sys_reg: Res<SystemRegistry>,
 ) {
 	let globals_scene = assets.load("globals.scn.ron");
 	cmds.insert_resource(GlobalsScene(globals_scene.clone()));
@@ -116,144 +121,8 @@ pub fn setup(
 		.into(),
 		..default()
 	},));
-	cmds.spawn((
-		PbrBundle {
-			mesh: meshes.add(Cuboid::from_size(Vec3::splat(1.0))),
-			material: mats.add(Color::WHITE),
-			..default()
-		},
-		RigidBody::Static,
-		Collider::cuboid(1.0, 1.0, 1.0),
-	));
-	cmds.spawn((
-		PbrBundle {
-			mesh: meshes.add(Cuboid::from_size(Vec3::splat(1.0))),
-			material: mats.add(Color::WHITE),
-			transform: Transform {
-				translation: Vec3::new(1.0, 0.0, -0.5),
-				..default()
-			},
-			..default()
-		},
-		RigidBody::Static,
-		Collider::cuboid(1.0, 1.0, 1.0),
-	));
-	cmds.spawn((
-		PbrBundle {
-			mesh: meshes.add(Cuboid::from_size(Vec3::splat(1.0))),
-			material: mats.add(Color::WHITE),
-			transform: Transform {
-				translation: Vec3::new(2.0, 0.0, -0.75),
-				..default()
-			},
-			..default()
-		},
-		RigidBody::Static,
-		Collider::cuboid(1.0, 1.0, 1.0),
-	));
-	cmds.spawn((
-		PbrBundle {
-			mesh: meshes.add(Cuboid::from_size(Vec3::splat(1.0))),
-			material: mats.add(Color::WHITE),
-			transform: Transform {
-				translation: Vec3::new(3.0, 0.0, -0.875),
-				..default()
-			},
-			..default()
-		},
-		RigidBody::Static,
-		Collider::cuboid(1.0, 1.0, 1.0),
-	));
-	let panel_col = Collider::cuboid(16.0, 16.0, 1.0);
-	let panel_mesh = meshes.add(Cuboid::new(16.0, 16.0, 1.0));
-	let dark_gray = mats.add(Color::DARK_GRAY);
-	cmds.spawn((
-		PbrBundle {
-			mesh: panel_mesh.clone(),
-			material: dark_gray.clone(),
-			transform: Transform::from_translation(Vec3::NEG_Z * 1.0),
-			..default()
-		},
-		RigidBody::Static,
-		panel_col.clone(),
-		NotShadowCaster,
-	));
-	cmds.spawn((
-		PbrBundle {
-			mesh: panel_mesh.clone(),
-			material: dark_gray.clone(),
-			transform: Transform {
-				translation: Vec3::new(0.0, 8.5, 6.5),
-				rotation: Quat::from_rotation_x(FRAC_PI_2),
-				..default()
-			},
-			..default()
-		},
-		RigidBody::Static,
-		panel_col.clone(),
-		NotShadowCaster,
-	));
-	cmds.spawn((
-		PbrBundle {
-			mesh: panel_mesh.clone(),
-			material: dark_gray.clone(),
-			transform: Transform {
-				translation: Vec3::new(-7.5, 0.0, 6.5),
-				rotation: Quat::from_rotation_y(FRAC_PI_2),
-				..default()
-			},
-			..default()
-		},
-		RigidBody::Static,
-		panel_col.clone(),
-		NotShadowCaster,
-	));
-	cmds.spawn((
-		PbrBundle {
-			mesh: panel_mesh.clone(),
-			material: dark_gray.clone(),
-			transform: Transform {
-				translation: Vec3::new(7.5, 0.0, 6.5),
-				rotation: Quat::from_rotation_y(FRAC_PI_2),
-				..default()
-			},
-			..default()
-		},
-		RigidBody::Static,
-		panel_col.clone(),
-		NotShadowCaster,
-	));
-	cmds.spawn((
-		TransformBundle {
-			local: Transform {
-				translation: Vec3::new(0.0, -8.5, 6.5),
-				rotation: Quat::from_rotation_x(FRAC_PI_2),
-				..default()
-			},
-			..default()
-		},
-		RigidBody::Static,
-		panel_col.clone(),
-		NotShadowCaster,
-	));
 
-	cmds.spawn((
-		Name::new("Orb"),
-		PbrBundle {
-			mesh: meshes.add(Sphere::new(0.3)),
-			material: mats.add(Color::ORANGE_RED),
-			transform: Transform::from_translation(Vec3::Z * 0.8),
-			..default()
-		},
-		Collider::sphere(0.3),
-		RigidBody::Static,
-	));
-
-	let clock_anchor = cmds.spawn((
-		TransformBundle::from_transform(Transform::from_translation(Vec3::NEG_Y * 0.6)),
-		VisibilityBundle::default(),
-	));
-	scene_spawner.spawn_as_child(clock.0.clone(), clock_anchor.id());
+	cmds.run_system(sys_reg.spawn_env);
 }
 
 #[cfg(feature = "debugging")]
