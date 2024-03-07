@@ -13,6 +13,7 @@ use bevy_xpbd_3d::{plugins::PhysicsPlugins, prelude::Gravity};
 use data::DataPlugin;
 use std::sync::OnceLock;
 use time_graph::TimeGraphPlugin;
+use crate::cam::move_cam;
 use crate::ui::GameUiPlugin;
 
 pub mod cam;
@@ -92,7 +93,7 @@ impl Plugin for GamePlugin {
 					..default()
 				},
 			)
-			.add_systems(Update, (toggle_projection, toggle_phys_gizmos));
+			.add_systems(Update, (move_cam, toggle_phys_gizmos));
 	}
 }
 
@@ -107,21 +108,6 @@ pub fn setup(
 	let globals_scene = assets.load("globals.scn.ron");
 	cmds.insert_resource(GlobalsScene(globals_scene.clone()));
 	scene_spawner.spawn_dynamic(globals_scene);
-}
-
-#[cfg(feature = "debugging")]
-pub fn toggle_projection(mut q: Query<&mut Projection>, keys: Res<ButtonInput<KeyCode>>) {
-	if keys.just_pressed(KeyCode::KeyO) {
-		for mut proj in &mut q {
-			let new = match &*proj {
-				Projection::Perspective(_) => Projection::Orthographic(cam::ortho_projection()),
-				Projection::Orthographic(_) => {
-					Projection::Perspective(PerspectiveProjection::default())
-				}
-			};
-			*proj = new;
-		}
-	}
 }
 
 #[cfg(feature = "debugging")]

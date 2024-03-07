@@ -4,7 +4,7 @@
 		"5s":(
 			happenings: [{
 				"happens::SpawnDynamicScene": (
-					path: "intro_trigger.scn.ron",
+					path: "scn/intro_trigger.scn.ron",
 				),
 			}]
 		),

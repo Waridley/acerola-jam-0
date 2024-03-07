@@ -1,7 +1,0 @@
-#![enable(implicit_some)]
-(
-	branch_from: ("tl/main.tl.ron", "15s"),
-	moments: {
-	},
-	merge_into: ("tl/main.tl.ron", "50s"),
-)

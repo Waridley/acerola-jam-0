@@ -129,9 +129,7 @@ pub fn check_triggers(
 		if *text.sections[0].value != **msg {
 			text.sections[0].value = msg.to_string();
 		}
-	} else {
-		if *vis == Visibility::Visible {
-			*vis = Visibility::Hidden
-		}
+	} else if *vis == Visibility::Visible {
+		*vis = Visibility::Hidden
 	}
 }
