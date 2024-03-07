@@ -6,8 +6,6 @@ use bevy_xpbd_3d::PhysicsSet;
 use sond_bevy_enum_components::{EntityEnumCommands, WithVariant};
 use crate::data::cam::cam_node::{Anchor, Gimbal, WithoutCamNode};
 
-pub struct CamPlugin;
-
 pub fn cam_resting_pos() -> Transform {
 	let translation = Vec3::new(0.0, -40.0, 20.0);
 	Transform {
@@ -22,6 +20,8 @@ pub fn cam_resting_pos() -> Transform {
 	}
 }
 
+pub struct CamPlugin;
+
 impl Plugin for CamPlugin {
 	fn build(&self, app: &mut App) {
 		app.add_systems(Startup, setup).add_systems(
@@ -30,6 +30,8 @@ impl Plugin for CamPlugin {
 				.after(PhysicsSet::Sync)
 				.before(TransformPropagate),
 		);
+		#[cfg(feature = "debugging")]
+		app.add_systems(Update, move_cam);
 	}
 }
 

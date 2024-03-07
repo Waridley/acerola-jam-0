@@ -13,7 +13,6 @@ use bevy_xpbd_3d::{plugins::PhysicsPlugins, prelude::Gravity};
 use data::DataPlugin;
 use std::sync::OnceLock;
 use time_graph::TimeGraphPlugin;
-use crate::cam::move_cam;
 use crate::ui::GameUiPlugin;
 
 pub mod cam;
@@ -93,7 +92,7 @@ impl Plugin for GamePlugin {
 					..default()
 				},
 			)
-			.add_systems(Update, (move_cam, toggle_phys_gizmos));
+			.add_systems(Update, toggle_phys_gizmos);
 	}
 }
 
