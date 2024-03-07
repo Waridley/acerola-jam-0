@@ -13,6 +13,7 @@ use bevy_xpbd_3d::{plugins::PhysicsPlugins, prelude::Gravity};
 use data::DataPlugin;
 use std::sync::OnceLock;
 use time_graph::TimeGraphPlugin;
+use crate::ui::GameUiPlugin;
 
 pub mod cam;
 pub mod data;
@@ -20,6 +21,7 @@ pub mod happens;
 pub mod player;
 pub mod scn;
 pub mod time_graph;
+pub mod ui;
 
 pub static TYPE_REGISTRY: OnceLock<TypeRegistryArc> = OnceLock::new();
 pub fn type_registry() -> &'static TypeRegistryArc {
@@ -75,6 +77,7 @@ impl Plugin for GamePlugin {
 			TimeGraphPlugin,
 			PlayerPlugin,
 			EnvironmentPlugin,
+			GameUiPlugin,
 		))
 		.add_systems(Startup, setup)
 		.add_systems(Update, tick_hand)

@@ -1,9 +1,9 @@
 use bevy::{
-	asset::{io::Reader, AssetLoader, AssetPath, AsyncReadExt, BoxedFuture, LoadContext},
+	asset::{AssetLoader, AssetPath, AsyncReadExt, BoxedFuture, io::Reader, LoadContext},
 	ecs::system::Command,
 	prelude::*,
 	reflect::{
-		serde::TypedReflectDeserializer, List, ListIter, ReflectMut, ReflectOwned, ReflectRef,
+		List, ListIter, ReflectMut, ReflectOwned, ReflectRef, serde::TypedReflectDeserializer,
 		TypeInfo, TypeRegistry, TypeRegistryArc,
 	},
 	scene::SceneLoaderError,
@@ -656,7 +656,10 @@ pub struct Trigger {
 pub enum TriggerKind {
 	#[default]
 	Enter,
-	Interact,
+	Interact {
+		#[serde(default = "crate::data::ui::default_interact_msg")]
+		message: Str,
+	},
 }
 
 pub mod do_list_serde {

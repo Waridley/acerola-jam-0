@@ -17,12 +17,14 @@
 							)
 						],
 					},
-					kind: Interact,
+					kind: Interact( message: "Despawn Portal" ),
 				),
 				"sonday_acerola_jam_0::data::phys::ColliderShape": Cylinder( half_height: 0.5, radius: 0.5 ),
+				"bevy_xpbd_3d::plugins::collision::collider::Sensor": (),
 				"bevy_transform::components::transform::Transform": (
 					translation: ( x: -4.0, y: 0.0, z: 0.0 ),
-					rotation: ( x: 0.0, y: 0.0, z: 0.0, w: 1.0 ),
+					// Quat::from_rotation_x(FRAC_PI_2)
+					rotation: ( x: 0.70710677, y: 0.0, z: 0.0, w: 0.70710677),
 					scale: ( x: 1.0, y: 1.0, z: 1.0 ),
 				),
 				"bevy_transform::components::global_transform::GlobalTransform": ((

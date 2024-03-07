@@ -9,6 +9,7 @@ use bevy::{prelude::*, utils::intern::Interned};
 use bevy_xpbd_3d::prelude::CollidingEntities;
 use leafwing_input_manager::prelude::ActionState;
 use sond_bevy_enum_components::WithVariant;
+use crate::data::ui::InteractSign;
 
 pub struct TimeGraphPlugin;
 
@@ -99,20 +100,38 @@ pub fn check_triggers(
 	mut cmds: Commands,
 	player: Query<(&CollidingEntities, &ActionState<Action>), WithVariant<Root>>,
 	triggers: Query<&Trigger>,
+	mut interact_sign: Query<(&mut Text, &mut Visibility), With<InteractSign>>,
 ) {
 	let Ok((colliding, inputs)) = player.get_single() else {
 		return;
 	};
-
+	
+	let (mut text, mut vis) = interact_sign.single_mut();
+	let mut interact_msg = None;
 	for id in colliding.iter().copied() {
 		if let Ok(trigger) = triggers.get(id) {
-			if trigger.kind == TriggerKind::Interact && !inputs.just_pressed(&Action::Interact) {
-				continue;
+			if let TriggerKind::Interact { message } = trigger.kind {
+				interact_msg = Some(message);
+				if !inputs.pressed(&Action::Interact) {
+					continue;
+				}
 			}
 			for to_do in trigger.causes.iter() {
 				to_do.apply(cmds.reborrow());
 			}
 			cmds.entity(id).despawn();
+		}
+	}
+	if let Some(msg) = interact_msg {
+		if *vis != Visibility::Visible {
+			*vis = Visibility::Visible;
+		}
+		if *text.sections[0].value != **msg {
+			text.sections[0].value = msg.to_string();
+		}
+	} else {
+		if *vis == Visibility::Visible {
+			*vis = Visibility::Hidden
 		}
 	}
 }

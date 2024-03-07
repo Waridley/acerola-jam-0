@@ -23,6 +23,7 @@ use std::{
 pub mod cam;
 pub mod phys;
 pub mod tl;
+pub mod ui;
 
 pub struct DataPlugin;
 
@@ -175,6 +176,12 @@ impl From<&str> for Str {
 impl Display for Str {
 	fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
 		f.write_str(self.0 .0)
+	}
+}
+
+impl From<Str> for String {
+	fn from(value: Str) -> Self {
+		value.to_string()
 	}
 }
 
