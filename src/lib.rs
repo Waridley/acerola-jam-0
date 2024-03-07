@@ -8,10 +8,10 @@ use crate::{
 		EnvironmentPlugin,
 	},
 };
-use bevy::{pbr::CascadeShadowConfigBuilder, prelude::*, reflect::TypeRegistryArc};
+use bevy::{prelude::*, reflect::TypeRegistryArc};
 use bevy_xpbd_3d::{plugins::PhysicsPlugins, prelude::Gravity};
 use data::DataPlugin;
-use std::{f32::consts::FRAC_PI_6, sync::OnceLock};
+use std::{sync::OnceLock};
 use time_graph::TimeGraphPlugin;
 
 pub mod cam;
@@ -100,29 +100,10 @@ pub fn setup(
 	mut cmds: Commands,
 	assets: Res<AssetServer>,
 	mut scene_spawner: ResMut<SceneSpawner>,
-	sys_reg: Res<SystemRegistry>,
 ) {
 	let globals_scene = assets.load("globals.scn.ron");
 	cmds.insert_resource(GlobalsScene(globals_scene.clone()));
 	scene_spawner.spawn_dynamic(globals_scene);
-
-	cmds.spawn((DirectionalLightBundle {
-		directional_light: DirectionalLight {
-			shadows_enabled: true,
-			..default()
-		},
-		transform: Transform::from_rotation(Quat::from_rotation_x(FRAC_PI_6)),
-		cascade_shadow_config: CascadeShadowConfigBuilder {
-			num_cascades: 1,
-			minimum_distance: 50.0,
-			maximum_distance: 80.0,
-			..default()
-		}
-		.into(),
-		..default()
-	},));
-
-	cmds.run_system(sys_reg.spawn_env);
 }
 
 #[cfg(feature = "debugging")]

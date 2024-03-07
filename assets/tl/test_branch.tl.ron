@@ -2,30 +2,6 @@
 (
 	branch_from: ("tl/main.tl.ron", "15s"),
 	moments: {
-		"17s": (
-			label: "disable_shouldn't_happen",
-			happenings: [{
-				"happens::ModifyTimeline": [
-					(
-						path: "tl/main.tl.ron",
-						timeline_updates: [
-							(
-								moment: Labelled("shouldn't_happen"),
-								disabled: Set( disabled: true ),
-							),
-						],
-					),
-				],
-			}],
-		),
-		"42s": (
-			label: "answer_life_universe_and_everything",
-			happenings: [{
-				"happens::Print": (
-					msg: "Eureka!",
-				),
-			}]
-		),
 	},
 	merge_into: ("tl/main.tl.ron", "50s"),
 )

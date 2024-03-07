@@ -6,7 +6,7 @@ use crate::{
 		},
 		Str,
 	},
-	scn::{spawn_environment, EnvRoot},
+	scn::{spawn_environment, Resettable},
 };
 use bevy::{
 	asset::{AssetPath, UntypedAssetId},
@@ -74,7 +74,7 @@ impl Command for SpawnTrigger {
 			Collider::sphere(self.sensor.radius),
 			Sensor,
 			self.trigger,
-			EnvRoot,
+			Resettable,
 		));
 	}
 }
@@ -125,7 +125,7 @@ impl Command for SpawnPortalTo {
 			self.global_transform,
 			Sensor,
 			PortalTo(t),
-			EnvRoot,
+			Resettable,
 		));
 	}
 }
@@ -243,7 +243,13 @@ impl SetDisabled {
 #[type_path = "happens"]
 pub struct Despawn {
 	#[serde(with = "crate::data::entity_path_str")]
-	entity: EntityPath,
+	pub entity: EntityPath,
+	#[serde(default = "_true")]
+	recursive: bool,
+}
+
+fn _true() -> bool {
+	true
 }
 
 impl Command for Despawn {
@@ -275,7 +281,11 @@ impl Command for Despawn {
 				}
 			}
 		}
-		world.despawn(id);
+		if self.recursive {
+			world.entity_mut(id).despawn_recursive();
+		} else {
+			world.despawn(id);
+		}
 	}
 }
 
@@ -293,7 +303,7 @@ impl Command for ResetLoop {
 		}
 		let mut tloop = world.resource_mut::<TimeLoop>();
 		tloop.curr.1 = default();
-		let mut q = world.query_filtered::<Entity, With<EnvRoot>>();
+		let mut q = world.query_filtered::<Entity, With<Resettable>>();
 		let mut to_despawn = Vec::new();
 		for id in q.iter(world) {
 			to_despawn.push(id);

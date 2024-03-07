@@ -53,8 +53,10 @@
 				"happens::Despawn": (
 					entity: "Orb",
 				),
-				"happens::SpawnPortalTo": (
-					target: ("tl/main.tl.ron", "1m15s"),
+				"happens::SpawnTrigger": (
+					trigger: ( causes: {
+						"happens::Despawn": ( entity: "Walls" ),
+					}),
 					sensor: ( radius: 0.5 ),
 					transform: (
 						translation: (0.0, 0.0, 0.75),

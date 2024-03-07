@@ -1,11 +1,7 @@
 use crate::scn::spawn_environment;
 use bevy::{
-	app::App,
 	ecs::system::SystemId,
-	prelude::{
-		Deref, FromReflect, Plugin, Reflect, ReflectDeserialize, ReflectFromReflect,
-		ReflectSerialize, TupleStruct, TypePath, *,
-	},
+	prelude::{Deref, TypePath, *},
 	reflect::{
 		DynamicTuple, DynamicTupleStruct, GetTypeRegistration, ReflectFromPtr, ReflectMut,
 		ReflectOwned, ReflectRef, TupleStructFieldIter, TypeInfo, TypeRegistration, Typed,

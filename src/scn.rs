@@ -1,8 +1,11 @@
+use std::f32::consts::FRAC_PI_6;
+use bevy::pbr::CascadeShadowConfigBuilder;
 use crate::scn::clock::ClockScene;
-use bevy::{pbr::NotShadowCaster, prelude::*};
+use bevy::prelude::*;
 use bevy_xpbd_3d::{components::RigidBody, prelude::Collider};
 use serde::{Deserialize, Serialize};
-use std::f32::consts::FRAC_PI_2;
+use crate::data::SystemRegistry;
+use crate::scn::intro::IntroPlugin;
 
 pub mod clock;
 pub mod intro;
@@ -10,16 +13,54 @@ pub mod intro;
 pub struct EnvironmentPlugin;
 
 impl Plugin for EnvironmentPlugin {
-	fn build(&self, _app: &mut App) {}
+	fn build(&self, app: &mut App) {
+		app
+			.add_systems(Startup, setup)
+			.add_plugins(IntroPlugin);
+	}
 
 	fn finish(&self, app: &mut App) {
 		app.init_resource::<ClockScene>();
 	}
 }
 
+pub fn setup(
+	mut cmds: Commands,
+	mut meshes: ResMut<Assets<Mesh>>,
+	mut mats: ResMut<Assets<StandardMaterial>>,
+	sys_reg: Res<SystemRegistry>,
+) {
+	cmds.spawn((DirectionalLightBundle {
+		directional_light: DirectionalLight {
+			shadows_enabled: true,
+			..default()
+		},
+		transform: Transform::from_rotation(Quat::from_rotation_x(FRAC_PI_6)),
+		cascade_shadow_config: CascadeShadowConfigBuilder {
+			num_cascades: 1,
+			maximum_distance: 80.0,
+			..default()
+		}
+			.into(),
+		..default()
+	},));
+	
+	cmds.spawn((
+		PbrBundle {
+			mesh: meshes.add(Plane3d::new(Vec3::Z).mesh().size(1024.0, 1024.0)),
+			material: mats.add(Color::rgb(0.1, 0.1, 0.1)),
+			transform: Transform::from_translation(Vec3::NEG_Z * 1.5),
+			..default()
+		},
+		Collider::halfspace(Vec3::Z),
+	));
+	
+	cmds.run_system(sys_reg.spawn_env);
+}
+
 #[derive(Component, Copy, Clone, Debug, Reflect, Serialize, Deserialize)]
 #[reflect(Component, Serialize, Deserialize)]
-pub struct EnvRoot;
+pub struct Resettable;
 
 pub fn spawn_environment(
 	mut cmds: Commands,
@@ -28,20 +69,21 @@ pub fn spawn_environment(
 	mut mats: ResMut<Assets<StandardMaterial>>,
 	clock: Res<ClockScene>,
 ) {
+	let white = mats.add(Color::WHITE);
 	cmds.spawn((
 		PbrBundle {
 			mesh: meshes.add(Cuboid::from_size(Vec3::splat(1.0))),
-			material: mats.add(Color::WHITE),
+			material: white.clone(),
 			..default()
 		},
 		RigidBody::Static,
 		Collider::cuboid(1.0, 1.0, 1.0),
-		EnvRoot,
+		Resettable,
 	));
 	cmds.spawn((
 		PbrBundle {
 			mesh: meshes.add(Cuboid::from_size(Vec3::splat(1.0))),
-			material: mats.add(Color::WHITE),
+			material: white.clone(),
 			transform: Transform {
 				translation: Vec3::new(1.0, 0.0, -0.5),
 				..default()
@@ -50,12 +92,12 @@ pub fn spawn_environment(
 		},
 		RigidBody::Static,
 		Collider::cuboid(1.0, 1.0, 1.0),
-		EnvRoot,
+		Resettable,
 	));
 	cmds.spawn((
 		PbrBundle {
 			mesh: meshes.add(Cuboid::from_size(Vec3::splat(1.0))),
-			material: mats.add(Color::WHITE),
+			material: white.clone(),
 			transform: Transform {
 				translation: Vec3::new(2.0, 0.0, -0.75),
 				..default()
@@ -64,12 +106,12 @@ pub fn spawn_environment(
 		},
 		RigidBody::Static,
 		Collider::cuboid(1.0, 1.0, 1.0),
-		EnvRoot,
+		Resettable,
 	));
 	cmds.spawn((
 		PbrBundle {
 			mesh: meshes.add(Cuboid::from_size(Vec3::splat(1.0))),
-			material: mats.add(Color::WHITE),
+			material: white.clone(),
 			transform: Transform {
 				translation: Vec3::new(3.0, 0.0, -0.875),
 				..default()
@@ -78,84 +120,7 @@ pub fn spawn_environment(
 		},
 		RigidBody::Static,
 		Collider::cuboid(1.0, 1.0, 1.0),
-		EnvRoot,
-	));
-	let panel_col = Collider::cuboid(16.0, 16.0, 1.0);
-	let panel_mesh = meshes.add(Cuboid::new(16.0, 16.0, 1.0));
-	let dark_gray = mats.add(Color::DARK_GRAY);
-	cmds.spawn((
-		PbrBundle {
-			mesh: panel_mesh.clone(),
-			material: dark_gray.clone(),
-			transform: Transform::from_translation(Vec3::NEG_Z * 1.0),
-			..default()
-		},
-		RigidBody::Static,
-		panel_col.clone(),
-		NotShadowCaster,
-		EnvRoot,
-	));
-	cmds.spawn((
-		PbrBundle {
-			mesh: panel_mesh.clone(),
-			material: dark_gray.clone(),
-			transform: Transform {
-				translation: Vec3::new(0.0, 8.5, 6.5),
-				rotation: Quat::from_rotation_x(FRAC_PI_2),
-				..default()
-			},
-			..default()
-		},
-		RigidBody::Static,
-		panel_col.clone(),
-		NotShadowCaster,
-		EnvRoot,
-	));
-	cmds.spawn((
-		PbrBundle {
-			mesh: panel_mesh.clone(),
-			material: dark_gray.clone(),
-			transform: Transform {
-				translation: Vec3::new(-7.5, 0.0, 6.5),
-				rotation: Quat::from_rotation_y(FRAC_PI_2),
-				..default()
-			},
-			..default()
-		},
-		RigidBody::Static,
-		panel_col.clone(),
-		NotShadowCaster,
-		EnvRoot,
-	));
-	cmds.spawn((
-		PbrBundle {
-			mesh: panel_mesh.clone(),
-			material: dark_gray.clone(),
-			transform: Transform {
-				translation: Vec3::new(7.5, 0.0, 6.5),
-				rotation: Quat::from_rotation_y(FRAC_PI_2),
-				..default()
-			},
-			..default()
-		},
-		RigidBody::Static,
-		panel_col.clone(),
-		NotShadowCaster,
-		EnvRoot,
-	));
-	cmds.spawn((
-		TransformBundle {
-			local: Transform {
-				translation: Vec3::new(0.0, -8.5, 6.5),
-				rotation: Quat::from_rotation_x(FRAC_PI_2),
-				..default()
-			},
-			..default()
-		},
-		RigidBody::Static,
-		panel_col.clone(),
-		NotShadowCaster,
-		EnvRoot,
+		Resettable,
 	));
 
 	cmds.spawn((
@@ -168,13 +133,13 @@ pub fn spawn_environment(
 		},
 		Collider::sphere(0.3),
 		RigidBody::Static,
-		EnvRoot,
+		Resettable,
 	));
 
 	let clock_anchor = cmds.spawn((
 		TransformBundle::from_transform(Transform::from_translation(Vec3::NEG_Y * 0.6)),
 		VisibilityBundle::default(),
-		EnvRoot,
+		Resettable,
 	));
 	scene_spawner.spawn_as_child(clock.0.clone(), clock_anchor.id());
 }

@@ -18,7 +18,7 @@ impl Plugin for CamPlugin {
 }
 
 pub fn setup(mut cmds: Commands) {
-	let translation = Vec3::new(0.0, -50.0, 25.0);
+	let translation = Vec3::new(0.0, -40.0, 20.0);
 	cmds.spawn((TransformBundle::default(), CamAnchor))
 		.with_children(|cmds| {
 			cmds.spawn(TransformBundle::from_transform(Transform {
