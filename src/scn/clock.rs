@@ -74,6 +74,6 @@ pub struct Hand;
 pub fn tick_hand(mut q: Query<&mut Transform, With<Hand>>, loop_time: Res<TimeLoop>) {
 	for mut xform in &mut q {
 		xform.rotation =
-			Quat::IDENTITY * (Quat::from_rotation_y(-TAU * loop_time.curr.1.as_secs_f32() / 60.0));
+			Quat::IDENTITY * (Quat::from_rotation_y(TAU * loop_time.curr.1.as_secs_f32() / 60.0));
 	}
 }

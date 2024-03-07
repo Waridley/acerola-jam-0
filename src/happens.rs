@@ -1,5 +1,6 @@
 use crate::{
 	data::{
+		phys::ColliderShape,
 		tl::{
 			AssetServerExt, LoadedTimelines, MomentRef, PortalTo, ReflectDo, TPath, TimeLoop,
 			Timeline, Trigger,
@@ -14,10 +15,7 @@ use bevy::{
 	prelude::*,
 	utils::HashMap,
 };
-use bevy_xpbd_3d::{
-	parry::shape::SharedShape,
-	prelude::{Collider, Sensor},
-};
+use bevy_xpbd_3d::prelude::{Collider, Sensor};
 use serde::{Deserialize, Serialize};
 
 pub struct HappeningsPlugin;
@@ -59,7 +57,7 @@ impl Command for TakeBranch {
 #[type_path = "happens"]
 pub struct SpawnTrigger {
 	pub trigger: Trigger,
-	pub sensor: ReflectBall,
+	pub sensor: ColliderShape,
 	pub transform: Transform,
 	pub global_transform: GlobalTransform,
 }
@@ -71,7 +69,7 @@ impl Command for SpawnTrigger {
 				local: self.transform,
 				global: self.global_transform,
 			},
-			Collider::sphere(self.sensor.radius),
+			Collider::from(self.sensor.clone()),
 			Sensor,
 			self.trigger,
 			Resettable,
@@ -79,35 +77,15 @@ impl Command for SpawnTrigger {
 	}
 }
 
-#[derive(Component, Debug, Default, Clone, Reflect, Serialize, Deserialize)]
+#[derive(Component, Default, Clone, Reflect, Serialize, Deserialize)]
 #[reflect(Do, Serialize, Deserialize)]
 #[serde(default)]
 #[type_path = "happens"]
 pub struct SpawnPortalTo {
 	pub target: TPath,
-	pub sensor: ReflectBall,
+	pub sensor: ColliderShape,
 	pub transform: Transform,
 	pub global_transform: GlobalTransform,
-}
-
-#[derive(Component, Debug, Copy, Clone, Reflect, Serialize, Deserialize)]
-#[reflect(Serialize, Deserialize)]
-#[serde(default)]
-#[type_path = "happens"]
-pub struct ReflectBall {
-	pub radius: f32,
-}
-
-impl Default for ReflectBall {
-	fn default() -> Self {
-		Self { radius: 30.0 }
-	}
-}
-
-impl From<ReflectBall> for SharedShape {
-	fn from(value: ReflectBall) -> Self {
-		Self::ball(value.radius)
-	}
 }
 
 impl Command for SpawnPortalTo {
@@ -120,7 +98,7 @@ impl Command for SpawnPortalTo {
 			return;
 		};
 		world.spawn((
-			Collider::from(SharedShape::from(self.sensor)),
+			Collider::from(self.sensor.clone()),
 			self.transform,
 			self.global_transform,
 			Sensor,

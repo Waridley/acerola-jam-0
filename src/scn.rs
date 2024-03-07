@@ -1,11 +1,11 @@
-use std::f32::consts::FRAC_PI_6;
-use bevy::pbr::CascadeShadowConfigBuilder;
-use crate::scn::clock::ClockScene;
-use bevy::prelude::*;
+use crate::{
+	data::SystemRegistry,
+	scn::{clock::ClockScene, intro::IntroPlugin},
+};
+use bevy::{pbr::CascadeShadowConfigBuilder, prelude::*};
 use bevy_xpbd_3d::{components::RigidBody, prelude::Collider};
 use serde::{Deserialize, Serialize};
-use crate::data::SystemRegistry;
-use crate::scn::intro::IntroPlugin;
+use std::f32::consts::FRAC_PI_6;
 
 pub mod clock;
 pub mod intro;
@@ -14,9 +14,7 @@ pub struct EnvironmentPlugin;
 
 impl Plugin for EnvironmentPlugin {
 	fn build(&self, app: &mut App) {
-		app
-			.add_systems(Startup, setup)
-			.add_plugins(IntroPlugin);
+		app.add_systems(Startup, setup).add_plugins(IntroPlugin);
 	}
 
 	fn finish(&self, app: &mut App) {
@@ -38,13 +36,13 @@ pub fn setup(
 		transform: Transform::from_rotation(Quat::from_rotation_x(FRAC_PI_6)),
 		cascade_shadow_config: CascadeShadowConfigBuilder {
 			num_cascades: 1,
-			maximum_distance: 80.0,
+			maximum_distance: 60.0,
 			..default()
 		}
-			.into(),
+		.into(),
 		..default()
 	},));
-	
+
 	cmds.spawn((
 		PbrBundle {
 			mesh: meshes.add(Plane3d::new(Vec3::Z).mesh().size(1024.0, 1024.0)),
@@ -54,7 +52,7 @@ pub fn setup(
 		},
 		Collider::halfspace(Vec3::Z),
 	));
-	
+
 	cmds.run_system(sys_reg.spawn_env);
 }
 

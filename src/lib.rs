@@ -11,7 +11,7 @@ use crate::{
 use bevy::{prelude::*, reflect::TypeRegistryArc};
 use bevy_xpbd_3d::{plugins::PhysicsPlugins, prelude::Gravity};
 use data::DataPlugin;
-use std::{sync::OnceLock};
+use std::sync::OnceLock;
 use time_graph::TimeGraphPlugin;
 
 pub mod cam;

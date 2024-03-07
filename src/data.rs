@@ -19,13 +19,14 @@ use std::{
 };
 
 pub mod cam;
+pub mod phys;
 pub mod tl;
 
 pub struct DataPlugin;
 
 impl Plugin for DataPlugin {
 	fn build(&self, app: &mut App) {
-		app.add_plugins((tl::TimeDataPlugin,));
+		app.add_plugins((tl::TimeDataPlugin, phys::PhysDataPlugin));
 	}
 }
 

@@ -1,7 +1,7 @@
 #![enable(implicit_some)]
 (
 	moments: {
-		"15s":(
+		"5s":(
 			happenings: [{
 				"happens::SpawnTrigger": (
 					trigger: ( causes: {
@@ -17,7 +17,7 @@
 							)
 						],
 					}),
-					sensor: ( radius: 0.5 ),
+					sensor: Ball(( radius: 0.5 )),
 					transform: (
 						translation: (-4.0, 0.0, 0.0),
 						rotation: (0.0, 0.0, 0.0, 1.0),
@@ -26,7 +26,7 @@
 				)
 			}]
 		),
-		"30s": (
+		"10s": (
 			label: "despawn_orb",
 			happenings: [{
 				"happens::Despawn": (
@@ -46,7 +46,7 @@
 				],
 			}],
 		),
-		"45s": (
+		"15s": (
 			label: "open_orb_portal",
 			happenings: [{
 				// Swap out for portal
@@ -57,7 +57,7 @@
 					trigger: ( causes: {
 						"happens::Despawn": ( entity: "Walls" ),
 					}),
-					sensor: ( radius: 0.5 ),
+					sensor: Ball(( radius: 0.25 )),
 					transform: (
 						translation: (0.0, 0.0, 0.75),
 						rotation: (0.0, 0.0, 0.0, 1.0),
@@ -66,7 +66,7 @@
 				),
 			}]
 		),
-		"1m": (
+		"20s": (
 			label: "reset_loop",
 			happenings: [{
 				"happens::Print": (msg: "resetting loop!"),
