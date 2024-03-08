@@ -1,10 +1,12 @@
-use crate::player::IsPlayer;
+use crate::{
+	data::cam::cam_node::{Anchor, Gimbal, WithoutCamNode},
+	player::IsPlayer,
+};
 use bevy::{
 	prelude::*, render::camera::ScalingMode, transform::TransformSystem::TransformPropagate,
 };
 use bevy_xpbd_3d::PhysicsSet;
 use sond_bevy_enum_components::{EntityEnumCommands, WithVariant};
-use crate::data::cam::cam_node::{Anchor, Gimbal, WithoutCamNode};
 
 pub fn cam_resting_pos() -> Transform {
 	let translation = Vec3::new(0.0, -40.0, 20.0);
@@ -42,17 +44,17 @@ pub fn setup(mut cmds: Commands) {
 		.with_children(|cmds| {
 			cmds.spawn(TransformBundle::from_transform(cam_resting_pos()))
 				.with_enum(Gimbal)
-			.with_children(|cmds| {
-				cmds.spawn((Camera3dBundle {
-					camera: Camera {
-						hdr: true,
-						clear_color: ClearColorConfig::Custom(Color::BLACK),
+				.with_children(|cmds| {
+					cmds.spawn((Camera3dBundle {
+						camera: Camera {
+							hdr: true,
+							clear_color: ClearColorConfig::Custom(Color::BLACK),
+							..default()
+						},
+						projection: Projection::Orthographic(ortho_projection()),
 						..default()
-					},
-					projection: Projection::Orthographic(ortho_projection()),
-					..default()
-				},));
-			});
+					},));
+				});
 		});
 }
 
@@ -86,7 +88,7 @@ pub fn move_cam(
 	t: Res<Time>,
 ) {
 	let dt = t.delta_seconds();
-	
+
 	if keys.just_pressed(KeyCode::KeyP) {
 		let mut proj = proj_q.single_mut();
 		let new = match &*proj {
@@ -97,15 +99,15 @@ pub fn move_cam(
 		};
 		*proj = new;
 	}
-	
+
 	let mut anchor = anchor_q.single_mut();
 	let mut gimbal = gimbal_q.single_mut();
 	if keys.pressed(KeyCode::Semicolon) {
 		anchor.rotation = Quat::IDENTITY;
 		*gimbal = cam_resting_pos();
-		return
+		return;
 	}
-	
+
 	let mut offset = Vec3::ZERO;
 	if keys.pressed(KeyCode::KeyI) {
 		offset.y += 1.0;
@@ -119,17 +121,14 @@ pub fn move_cam(
 	if keys.pressed(KeyCode::KeyO) {
 		offset.z -= 1.0;
 	}
-	
+
 	if offset.length() > 0.2 {
 		let mut new = gimbal.translation + offset * dt * 8.0;
 		new.y = f32::min(-0.5, new.y);
 		gimbal.translation = new;
-		gimbal.rotation = Quat::from_rotation_arc(
-			Vec3::NEG_Z,
-			-new.normalize(),
-		);
+		gimbal.rotation = Quat::from_rotation_arc(Vec3::NEG_Z, -new.normalize());
 	}
-	
+
 	if keys.pressed(KeyCode::KeyJ) {
 		anchor.rotation *= Quat::from_rotation_z(-dt);
 	}

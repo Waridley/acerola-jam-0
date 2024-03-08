@@ -1,9 +1,9 @@
 use bevy::{
-	asset::{AssetLoader, AssetPath, AsyncReadExt, BoxedFuture, io::Reader, LoadContext},
+	asset::{io::Reader, AssetLoader, AssetPath, AsyncReadExt, BoxedFuture, LoadContext},
 	ecs::system::Command,
 	prelude::*,
 	reflect::{
-		List, ListIter, ReflectMut, ReflectOwned, ReflectRef, serde::TypedReflectDeserializer,
+		serde::TypedReflectDeserializer, List, ListIter, ReflectMut, ReflectOwned, ReflectRef,
 		TypeInfo, TypeRegistry, TypeRegistryArc,
 	},
 	scene::SceneLoaderError,
@@ -58,13 +58,17 @@ impl Plugin for TimeDataPlugin {
 
 		let main_path = AssetPath::from("tl/main.tl.ron");
 		let main = assets.load(main_path.clone());
-		let test_path = AssetPath::from("tl/test_branch.tl.ron");
-		let test_branch = assets.load(test_path.clone());
+		let intro_complete_path = AssetPath::from("tl/intro_complete.tl.ron");
+		let intro_complete_branch = assets.load(intro_complete_path.clone());
 		app.insert_resource(TimeLoop {
 			curr: T(main.id(), default()),
 		});
 		app.insert_resource(LoadedTimelines(
-			[(main_path, main), (test_path, test_branch)].into(),
+			[
+				(main_path, main),
+				(intro_complete_path, intro_complete_branch),
+			]
+			.into(),
 		));
 	}
 }

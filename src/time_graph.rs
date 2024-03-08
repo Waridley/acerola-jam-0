@@ -1,6 +1,7 @@
 use crate::{
 	data::{
 		tl::{PortalTo, TimeLoop, Timeline, Trigger, TriggerKind},
+		ui::InteractSign,
 		Str,
 	},
 	player::{player_entity::Root, Action},
@@ -9,7 +10,6 @@ use bevy::{prelude::*, utils::intern::Interned};
 use bevy_xpbd_3d::prelude::CollidingEntities;
 use leafwing_input_manager::prelude::ActionState;
 use sond_bevy_enum_components::WithVariant;
-use crate::data::ui::InteractSign;
 
 pub struct TimeGraphPlugin;
 
@@ -105,7 +105,7 @@ pub fn check_triggers(
 	let Ok((colliding, inputs)) = player.get_single() else {
 		return;
 	};
-	
+
 	let (mut text, mut vis) = interact_sign.single_mut();
 	let mut interact_msg = None;
 	for id in colliding.iter().copied() {

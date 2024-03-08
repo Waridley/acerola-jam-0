@@ -1,6 +1,6 @@
+use crate::data::Str;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
-use crate::data::Str;
 
 #[derive(Component, Copy, Clone, Default, Debug, Reflect, Serialize, Deserialize)]
 #[reflect(Serialize, Deserialize)]

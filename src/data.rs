@@ -1,4 +1,4 @@
-use crate::scn::spawn_environment;
+use crate::{asset_server, scn::spawn_environment};
 use bevy::{
 	asset::AssetPath,
 	ecs::system::SystemId,
@@ -12,7 +12,7 @@ use bevy::{
 		HashMap,
 	},
 };
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{de::DeserializeOwned, Deserialize, Deserializer, Serialize, Serializer};
 use std::{
 	any::Any,
 	fmt,
@@ -30,7 +30,14 @@ pub struct DataPlugin;
 impl Plugin for DataPlugin {
 	fn build(&self, app: &mut App) {
 		app.register_type::<LoadAsset<Image>>()
-			.add_systems(Last, replace_paths_with_handles::<Image>)
+			.register_type::<LoadSprite3d>()
+			.add_systems(
+				Last,
+				(
+					replace_paths_with_handles::<Image>,
+					replace_sprite3ds_with_handles,
+				),
+			)
 			.add_plugins((tl::TimeDataPlugin, phys::PhysDataPlugin));
 	}
 }
@@ -241,7 +248,7 @@ impl FromWorld for SystemRegistry {
 }
 
 #[derive(Component, Reflect, Clone, Debug, Deref, DerefMut, Serialize, Deserialize)]
-#[reflect(Serialize, Deserialize)]
+#[reflect(Component, Serialize, Deserialize)]
 pub struct LoadAsset<T: Asset>(
 	#[deref] pub AssetPath<'static>,
 	#[reflect(ignore)]
@@ -257,5 +264,117 @@ pub fn replace_paths_with_handles<T: Asset>(
 	for (id, LoadAsset(path, _)) in &q {
 		let handle = srv.load::<T>(path);
 		cmds.entity(id).insert(handle).remove::<LoadAsset<T>>();
+	}
+}
+
+#[derive(Component, Reflect, Clone, Debug, Deref, DerefMut, Serialize, Deserialize)]
+#[reflect(Component, Serialize, Deserialize, where T: Serialize, T: DeserializeOwned)]
+pub struct InlineAsset<T: Asset + Reflect + FromReflect> {
+	#[deref]
+	pub value: T,
+}
+
+impl<T: Asset + Serialize + DeserializeOwned + Reflect + FromReflect> InlineAsset<T> {
+	pub fn into_handle(self) -> Handle<T> {
+		asset_server().add(self.value)
+	}
+}
+
+#[derive(Component, Reflect, Clone, Debug, Serialize, Deserialize)]
+#[reflect(Component, Serialize, Deserialize)]
+#[serde(default)]
+pub struct LoadSprite3d {
+	pub image: AssetPath<'static>,
+	pub base_color: Color,
+	pub size: Vec2,
+	pub transform: Transform,
+	pub alpha_mode: LoadAlphaMode,
+	pub unlit: bool,
+	pub double_sided: bool,
+	pub emissive: Color,
+}
+
+impl Default for LoadSprite3d {
+	fn default() -> Self {
+		Self {
+			image: "bevy_logo_dark.png".into(),
+			base_color: Color::WHITE,
+			size: Vec2::ONE,
+			transform: default(),
+			alpha_mode: default(),
+			unlit: false,
+			double_sided: true,
+			emissive: Color::BLACK,
+		}
+	}
+}
+
+#[derive(Reflect, Clone, Copy, Debug, Serialize, Deserialize)]
+#[reflect(Serialize, Deserialize)]
+pub enum LoadAlphaMode {
+	Opaque,
+	Mask(f32),
+	Blend,
+	Premultiplied,
+	Add,
+	Multiply,
+}
+
+impl Default for LoadAlphaMode {
+	fn default() -> Self {
+		Self::Mask(0.5)
+	}
+}
+
+impl From<LoadAlphaMode> for AlphaMode {
+	fn from(value: LoadAlphaMode) -> Self {
+		match value {
+			LoadAlphaMode::Opaque => AlphaMode::Opaque,
+			LoadAlphaMode::Mask(m) => AlphaMode::Mask(m),
+			LoadAlphaMode::Blend => AlphaMode::Blend,
+			LoadAlphaMode::Premultiplied => AlphaMode::Premultiplied,
+			LoadAlphaMode::Add => AlphaMode::Add,
+			LoadAlphaMode::Multiply => AlphaMode::Multiply,
+		}
+	}
+}
+
+pub fn replace_sprite3ds_with_handles(
+	mut cmds: Commands,
+	q: Query<(Entity, &LoadSprite3d)>,
+	mut meshes: ResMut<Assets<Mesh>>,
+	mut mats: ResMut<Assets<StandardMaterial>>,
+	srv: Res<AssetServer>,
+) {
+	for (id, to_load) in &q {
+		let handle = srv.load(to_load.image.clone());
+		let LoadSprite3d {
+			base_color,
+			size,
+			transform,
+			alpha_mode,
+			unlit,
+			double_sided,
+			emissive,
+			..
+		} = to_load.clone();
+		let mesh = meshes.add(Rectangle::new(size.x, size.y));
+		let material = mats.add(StandardMaterial {
+			base_color,
+			base_color_texture: Some(handle),
+			alpha_mode: alpha_mode.into(),
+			unlit,
+			double_sided,
+			emissive,
+			..default()
+		});
+		cmds.entity(id)
+			.insert(PbrBundle {
+				mesh,
+				material,
+				transform,
+				..default()
+			})
+			.remove::<LoadSprite3d>();
 	}
 }

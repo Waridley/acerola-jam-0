@@ -7,13 +7,13 @@ use crate::{
 		clock::{tick_hand, Hand},
 		EnvironmentPlugin,
 	},
+	ui::GameUiPlugin,
 };
 use bevy::{prelude::*, reflect::TypeRegistryArc};
 use bevy_xpbd_3d::{plugins::PhysicsPlugins, prelude::Gravity};
 use data::DataPlugin;
 use std::sync::OnceLock;
 use time_graph::TimeGraphPlugin;
-use crate::ui::GameUiPlugin;
 
 pub mod cam;
 pub mod data;
@@ -31,6 +31,11 @@ pub fn type_registry() -> &'static TypeRegistryArc {
 }
 
 pub static ASSET_SERVER: OnceLock<AssetServer> = OnceLock::new();
+pub fn asset_server() -> &'static AssetServer {
+	ASSET_SERVER
+		.get()
+		.expect("ASSET_SERVER should be initialized")
+}
 
 pub struct GamePlugin {
 	pub asset_dir: &'static str,
