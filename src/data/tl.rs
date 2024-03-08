@@ -649,6 +649,8 @@ pub struct PortalTo(pub T);
 #[derive(Component, Reflect, Default, Clone, Serialize, Deserialize)]
 #[reflect(Component, Serialize, Deserialize)]
 pub struct Trigger {
+	#[serde(default)]
+	pub oneshot: bool,
 	#[serde(with = "do_list_serde")]
 	pub causes: DoList,
 	#[serde(default)]

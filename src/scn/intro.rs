@@ -1,12 +1,18 @@
 use bevy::{pbr::NotShadowCaster, prelude::*};
 use bevy_xpbd_3d::{components::RigidBody, prelude::Collider};
 use std::f32::consts::FRAC_PI_2;
+use bevy::ecs::system::Command;
+use bevy_sprite3d::Sprite3dComponent;
+use serde::{Deserialize, Serialize};
+use crate::data::tl::{Do, ReflectDo};
 
 pub struct IntroPlugin;
 
 impl Plugin for IntroPlugin {
 	fn build(&self, app: &mut App) {
-		app.add_systems(Startup, setup);
+		app
+			.register_type::<FlipLever>()
+			.add_systems(Startup, setup);
 	}
 }
 
@@ -96,4 +102,23 @@ pub fn setup(
 			NotShadowCaster,
 		));
 	});
+}
+
+#[derive(Copy, Clone, Default, Debug, Reflect, Serialize, Deserialize)]
+#[reflect(Do, Serialize, Deserialize)]
+pub struct FlipLever;
+
+impl Command for FlipLever {
+	fn apply(self, world: &mut World) {
+		let mut levers = world.query::<(&Name, &mut TextureAtlas)>();
+		let Some((_, mut atlas)) = levers.iter_mut(world).find(|(name, _)| &***name == "IntroLever") else {
+			error!("Failed to find IntroLever");
+			return
+		};
+		atlas.index = if atlas.index == 0 {
+			1
+		} else {
+			0
+		}
+	}
 }

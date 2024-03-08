@@ -15,8 +15,8 @@ pub struct TimeGraphPlugin;
 
 impl Plugin for TimeGraphPlugin {
 	fn build(&self, app: &mut App) {
-		app.add_systems(PreUpdate, (step_loop, take_portal, check_triggers))
-			.add_systems(Update, print_timelines);
+		app.add_systems(PreUpdate, (step_loop, take_portal))
+			.add_systems(Update, (print_timelines, check_triggers));
 	}
 }
 
@@ -112,14 +112,16 @@ pub fn check_triggers(
 		if let Ok(trigger) = triggers.get(id) {
 			if let TriggerKind::Interact { message } = trigger.kind {
 				interact_msg = Some(message);
-				if !inputs.pressed(&Action::Interact) {
+				if !inputs.just_pressed(&Action::Interact) {
 					continue;
 				}
 			}
 			for to_do in trigger.causes.iter() {
 				to_do.apply(cmds.reborrow());
 			}
-			cmds.entity(id).despawn();
+			if trigger.oneshot {
+				cmds.entity(id).despawn();
+			}
 		}
 	}
 	if let Some(msg) = interact_msg {

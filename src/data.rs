@@ -12,6 +12,7 @@ use bevy::{
 		HashMap,
 	},
 };
+use bevy_sprite3d::{Sprite3dBundle, Sprite3dComponent};
 use serde::{de::DeserializeOwned, Deserialize, Deserializer, Serialize, Serializer};
 use std::{
 	any::Any,
@@ -36,6 +37,7 @@ impl Plugin for DataPlugin {
 				(
 					replace_paths_with_handles::<Image>,
 					replace_sprite3ds_with_handles,
+					set_atlas_3d_meshes,
 				),
 			)
 			.add_plugins((tl::TimeDataPlugin, phys::PhysDataPlugin));
@@ -284,27 +286,172 @@ impl<T: Asset + Serialize + DeserializeOwned + Reflect + FromReflect> InlineAsse
 #[reflect(Component, Serialize, Deserialize)]
 #[serde(default)]
 pub struct LoadSprite3d {
-	pub image: AssetPath<'static>,
-	pub base_color: Color,
 	pub size: Vec2,
+	pub atlas_layout: Option<LoadAtlas3d>,
 	pub transform: Transform,
+	pub material: LoadStdMat,
+}
+
+#[derive(Reflect, Clone, Debug, Serialize, Deserialize)]
+#[reflect(Serialize, Deserialize)]
+pub struct LoadAtlas3d {
+	pub tile_size: Vec2,
+	pub columns: usize,
+	pub rows: usize,
+	#[serde(default)]
+	pub padding: Option<Vec2>,
+	#[serde(default)]
+	pub offset: Option<Vec2>,
+}
+
+impl Default for LoadSprite3d {
+	fn default() -> Self {
+		Self {
+			size: Vec2::ONE,
+			atlas_layout: None,
+			transform: default(),
+			material: LoadStdMat {
+				base_color_texture: Some("bevy_logo_dark.png".into()),
+				base_color: Color::WHITE,
+				alpha_mode: LoadAlphaMode::Mask(0.5),
+				double_sided: true,
+				emissive: Color::BLACK,
+				..default()
+			},
+		}
+	}
+}
+
+pub fn replace_sprite3ds_with_handles(
+	mut cmds: Commands,
+	q: Query<(Entity, &LoadSprite3d)>,
+	mut meshes: ResMut<Assets<Mesh>>,
+	mut mats: ResMut<Assets<StandardMaterial>>,
+	mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
+	srv: Res<AssetServer>,
+) {
+	for (id, to_load) in &q {
+		let mut cmds = cmds.entity(id);
+		let LoadSprite3d {
+			size,
+			atlas_layout,
+			transform,
+			material,
+		} = to_load.clone();
+		
+		let material = mats.add(material.load_using(&srv));
+		
+		let mesh = if let Some(LoadAtlas3d {
+			tile_size,
+			columns,
+			rows,
+			padding,
+			offset,
+		}) = atlas_layout {
+			let layout = TextureAtlasLayout::from_grid(tile_size, columns, rows, padding, offset);
+			let template = Rectangle::new(size.x, size.y).mesh();
+			let size = layout.size;
+			let len = layout.textures.len();
+			let mut atlas_meshes = Vec::with_capacity(len);
+			for rect in &layout.textures {
+				let u0 = rect.min.x / size.x;
+				let u1 = rect.max.x / size.x;
+				let v0 = rect.min.y / size.y;
+				let v1 = rect.max.y / size.y;
+				
+				let mesh = template.clone()
+					.with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, vec![
+						[u1, v0], [u0, v0], [u0, v1], [u1, v1],
+					]);
+				atlas_meshes.push(meshes.add(mesh));
+			}
+			let init_mesh = atlas_meshes[0].clone();
+			cmds.insert((
+				SpriteSheet3dMeshes(atlas_meshes),
+				TextureAtlas {
+					layout: atlas_layouts.add(layout),
+					index: 0,
+				}
+			));
+			
+			init_mesh
+		} else {
+			meshes.add(Rectangle::new(size.x, size.y))
+		};
+		
+		let pbr = PbrBundle {
+			mesh,
+			material,
+			transform,
+			..default()
+		};
+
+		cmds.insert(Sprite3dBundle {
+			params: Sprite3dComponent {},
+			pbr,
+		});
+		cmds.remove::<LoadSprite3d>();
+	}
+}
+
+#[derive(Component, Debug, Deref, DerefMut)]
+pub struct SpriteSheet3dMeshes(pub Vec<Handle<Mesh>>);
+
+pub fn set_atlas_3d_meshes(
+	mut q: Query<(&mut Handle<Mesh>, &SpriteSheet3dMeshes, &TextureAtlas), Changed<TextureAtlas>>,
+) {
+	for (mut handle, meshes, atlas) in &mut q {
+		let new = meshes[atlas.index].clone();
+		if *handle != new {
+			*handle = new
+		}
+	}
+}
+
+#[derive(Component, Reflect, Clone, Debug, Serialize, Deserialize)]
+#[reflect(Component, Serialize, Deserialize)]
+#[serde(default)]
+pub struct LoadStdMat {
+	pub base_color_texture: Option<AssetPath<'static>>,
+	pub base_color: Color,
 	pub alpha_mode: LoadAlphaMode,
 	pub unlit: bool,
 	pub double_sided: bool,
 	pub emissive: Color,
 }
 
-impl Default for LoadSprite3d {
+impl Default for LoadStdMat {
 	fn default() -> Self {
 		Self {
-			image: "bevy_logo_dark.png".into(),
+			base_color_texture: None,
 			base_color: Color::WHITE,
-			size: Vec2::ONE,
-			transform: default(),
 			alpha_mode: default(),
 			unlit: false,
 			double_sided: true,
 			emissive: Color::BLACK,
+		}
+	}
+}
+
+impl LoadStdMat {
+	pub fn load_using(self, asset_server: &AssetServer) -> StandardMaterial {
+		let Self {
+			base_color_texture,
+			base_color,
+			alpha_mode,
+			unlit,
+			double_sided,
+			emissive,
+		} = self;
+
+		StandardMaterial {
+			base_color_texture: base_color_texture.map(|path| asset_server.load(path)),
+			base_color,
+			alpha_mode: alpha_mode.into(),
+			unlit,
+			double_sided,
+			emissive,
+			..default()
 		}
 	}
 }
@@ -336,45 +483,5 @@ impl From<LoadAlphaMode> for AlphaMode {
 			LoadAlphaMode::Add => AlphaMode::Add,
 			LoadAlphaMode::Multiply => AlphaMode::Multiply,
 		}
-	}
-}
-
-pub fn replace_sprite3ds_with_handles(
-	mut cmds: Commands,
-	q: Query<(Entity, &LoadSprite3d)>,
-	mut meshes: ResMut<Assets<Mesh>>,
-	mut mats: ResMut<Assets<StandardMaterial>>,
-	srv: Res<AssetServer>,
-) {
-	for (id, to_load) in &q {
-		let handle = srv.load(to_load.image.clone());
-		let LoadSprite3d {
-			base_color,
-			size,
-			transform,
-			alpha_mode,
-			unlit,
-			double_sided,
-			emissive,
-			..
-		} = to_load.clone();
-		let mesh = meshes.add(Rectangle::new(size.x, size.y));
-		let material = mats.add(StandardMaterial {
-			base_color,
-			base_color_texture: Some(handle),
-			alpha_mode: alpha_mode.into(),
-			unlit,
-			double_sided,
-			emissive,
-			..default()
-		});
-		cmds.entity(id)
-			.insert(PbrBundle {
-				mesh,
-				material,
-				transform,
-				..default()
-			})
-			.remove::<LoadSprite3d>();
 	}
 }

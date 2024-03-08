@@ -4,7 +4,9 @@
 		4294967296: (
 			components: {
 				"sonday_acerola_jam_0::data::tl::Trigger": (
+					oneshot: false,
 					causes: {
+						"sonday_acerola_jam_0::scn::intro::FlipLever": (),
 						"happens::ModifyTimeline": [
 							(
 								path: "tl/main.tl.ron",
@@ -17,7 +19,7 @@
 							)
 						],
 					},
-					kind: Interact(message: "Despawn Portal"),
+					kind: Interact(message: "Flip Lever"),
 				),
 				"sonday_acerola_jam_0::data::phys::ColliderShape": Cylinder(half_height: 0.5, radius: 0.5),
 				"bevy_xpbd_3d::plugins::collision::collider::Sensor": (),
@@ -46,13 +48,22 @@
 		),
 		4294967297: (
 			components: {
+				"bevy_core::name::Name": "IntroLever",
 				"sonday_acerola_jam_0::data::LoadSprite3d": (
-					image: "bevy_logo_dark.png",
+					size: (0.25, 1.0),
 					transform: (
 						translation: (0.0, 0.0, 0.0),
 						rotation: (0.0, 0.0, 0.0, 1.0),
 						scale: (1.0, 1.0, 1.0),
 					),
+					atlas_layout: (
+						tile_size: (128.0, 512.0),
+						rows: 1,
+						columns: 2,
+					),
+					material: (
+						base_color_texture: "scn/lever_post.png",
+					)
 				),
 				"bevy_hierarchy::components::parent::Parent": (
 					4294967296

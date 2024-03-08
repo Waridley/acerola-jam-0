@@ -36,7 +36,7 @@
 					entity: "Orb",
 				),
 				"happens::SpawnTrigger": (
-					trigger: ( causes: {
+					trigger: ( oneshot: true, causes: {
 						"happens::Despawn": ( entity: "Walls" ),
 					}),
 					sensor: Ball( radius: 0.25 ),
