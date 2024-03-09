@@ -1,5 +1,5 @@
 [package]
-name = "sonday-acerola-jam-0-web"
+name = "kairoi-web"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,5 +7,5 @@ edition = "2021"
 debugging = ["game_lib/debugging"]
 
 [dependencies]
-game_lib = { package = "sonday-acerola-jam-0", path = "../../" }
+game_lib = { package = "kairoi", path = "../../" }
 bevy = { workspace = true }

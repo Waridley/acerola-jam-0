@@ -55,7 +55,7 @@ impl Plugin for GamePlugin {
 				})
 				.set(WindowPlugin {
 					primary_window: Some(Window {
-						title: "Sonday Studios -- Acerola Jam #0".to_owned(),
+						title: "Καιροί".to_owned(),
 						resizable: true,
 						canvas: Some("#game_canvas".to_owned()),
 						..default()

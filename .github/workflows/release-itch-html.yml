@@ -15,7 +15,7 @@ on:
       - "*"
 
 env:
-  APP_NAME: sonday_acerola_jam_0
+  APP_NAME: kairoi
 
 jobs:
   ci:
@@ -71,6 +71,6 @@ jobs:
     uses: ./.github/workflows/itch.yml
     with:
       author: marioaran64@gmail.com
-      name:
+      name: kairoi
       file_name: ${{ needs.build.outputs.APP_NAME }}-wasm32-unknown-unknown.zip
       os: html5

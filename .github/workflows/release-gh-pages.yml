@@ -15,8 +15,8 @@ on:
       - "*"
 
 env:
-  APP_NAME: sonday_acerola_jam_0
-  PUBLIC_URL: /acerola-jam-0/
+  APP_NAME: kairoi
+  PUBLIC_URL: /kairoi/
 
 jobs:
   ci:

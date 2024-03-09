@@ -4,7 +4,7 @@ permissions:
   contents: write
 
 env:
-  APP_NAME: sonday_acerola_jam_0
+  APP_NAME: kairoi
 
 on:
   workflow_dispatch:

@@ -1,11 +1,11 @@
 dev:
-	RUST_LOG="info,wgpu=warn,naga=warn,sonday_acerola_jam_0=debug,time_graph=debug" cargo run --package="sonday-acerola-jam-0-desktop" --profile="desktop" --features="debugging,bevy/file_watcher,bevy/asset_processor,bevy_dylib"
+	RUST_LOG="info,wgpu=warn,naga=warn,kairoi=debug,time_graph=debug" cargo run --package="kairoi-desktop" --profile="desktop" --features="debugging,bevy/file_watcher,bevy/asset_processor,bevy_dylib"
 
 release:
-	cargo run --package="sonday-acerola-jam-0-desktop" --profile="desktop-release"
+	cargo run --package="kairoi-desktop" --profile="desktop-release"
 
 release-debug:
-	RUST_LOG="info,wgpu=warn,naga=warn,sonday_acerola_jam_0=debug,time_graph=debug" cargo run --package="sonday-acerola-jam-0-desktop" --profile="release-debug" --features="debugging"
+	RUST_LOG="info,wgpu=warn,naga=warn,kairoi=debug,time_graph=debug" cargo run --package="kairoi-desktop" --profile="release-debug" --features="debugging"
 
 serve:
 	trunk serve --open --public-url="/" --features="debugging"

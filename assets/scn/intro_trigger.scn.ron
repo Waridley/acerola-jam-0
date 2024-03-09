@@ -3,10 +3,10 @@
 	entities: {
 		4294967296: (
 			components: {
-				"sonday_acerola_jam_0::data::tl::Trigger": (
+				"kairoi::data::tl::Trigger": (
 					oneshot: false,
 					causes: {
-						"sonday_acerola_jam_0::scn::intro::FlipLever": (),
+						"kairoi::scn::intro::FlipLever": (),
 						"happens::ModifyTimeline": [
 							(
 								path: "tl/main.tl.ron",
@@ -21,7 +21,7 @@
 					},
 					kind: Interact(message: "Flip Lever"),
 				),
-				"sonday_acerola_jam_0::data::phys::ColliderShape": Cylinder(half_height: 0.5, radius: 0.5),
+				"kairoi::data::phys::ColliderShape": Cylinder(half_height: 0.5, radius: 0.5),
 				"bevy_xpbd_3d::plugins::collision::collider::Sensor": (),
 				"bevy_transform::components::transform::Transform": (
 					translation: (x: -4.0, y: 0.0, z: 0.0 ),
@@ -37,7 +37,7 @@
 					),
 					translation: (x: 0.0, y: 0.0, z: 0.0 ),
 				)),
-				"sonday_acerola_jam_0::scn::Resettable": (),
+				"kairoi::scn::Resettable": (),
 				"bevy_hierarchy::components::children::Children": (
 					[4294967297,]
 				),
@@ -49,7 +49,7 @@
 		4294967297: (
 			components: {
 				"bevy_core::name::Name": "IntroLever",
-				"sonday_acerola_jam_0::data::LoadSprite3d": (
+				"kairoi::data::LoadSprite3d": (
 					size: (0.25, 1.0),
 					transform: (
 						translation: (0.0, 0.0, 0.0),
