@@ -17,6 +17,7 @@ on:
 env:
   APP_NAME: kairoi
   PUBLIC_URL: /kairoi/
+  PWD: ${GITHUB_WORKSPACE}
 
 jobs:
   ci:
@@ -45,14 +46,13 @@ jobs:
 
       - name: Build | Trunk
         run: |
-          cd launchers/wasm
           trunk build --release --public-url ${{ env.PUBLIC_URL }}
 
       - name: Post Build | Upload dist
         uses: actions/upload-artifact@v3
         with:
           name: dist
-          path: ./launchers/wasm/dist/
+          path: ./dist/
 
   deploy:
     needs: build

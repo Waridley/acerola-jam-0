@@ -16,6 +16,7 @@ on:
 
 env:
   APP_NAME: kairoi
+  PWD: ${GITHUB_WORKSPACE}
 
 jobs:
   ci:
@@ -49,12 +50,11 @@ jobs:
         env:
           name: ${{env.APP_NAME}}
         run: |
-          cd launchers/wasm
           trunk build --release --public-url /$PUBLIC_URL/
 
       - name: Setup | Place dist
         run: |
-          cd ./launchers/wasm/dist
+          cd ./dist
           sed -i 's#/main-#./main-#g' index.html
           sed -i 's#/wasm_#./wasm_#g' index.html
           find . -type f -exec zip ../../../${{env.APP_NAME}}-wasm32-unknown-unknown.zip {} \;
@@ -66,11 +66,11 @@ jobs:
           path: ${{env.APP_NAME}}-wasm32-unknown-unknown.zip
 
   upload-itch:
-    needs: build_native
+    needs: build
     secrets: inherit
     uses: ./.github/workflows/itch.yml
     with:
       author: marioaran64@gmail.com
-      name: kairoi
+      name: ${{ needs.build.outputs.APP_NAME }}
       file_name: ${{ needs.build.outputs.APP_NAME }}-wasm32-unknown-unknown.zip
       os: html5

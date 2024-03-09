@@ -5,6 +5,7 @@ permissions:
 
 env:
   APP_NAME: kairoi
+  PWD: ${GITHUB_WORKSPACE}
 
 on:
   workflow_dispatch:
@@ -36,10 +37,10 @@ jobs:
             os: ubuntu-latest
             name: x86_64-unknown-linux-gnu.tar.gz
             channel: linux
-          - target: x86_64-apple-darwin
-            os: macos-latest
-            name: x86_64-apple-darwin.tar.gz
-            channel: mac
+#          - target: x86_64-apple-darwin
+#            os: macos-latest
+#            name: x86_64-apple-darwin.tar.gz
+#            channel: mac
           - target: x86_64-pc-windows-msvc
             os: windows-latest
             name: x86_64-pc-windows-msvc.zip
@@ -111,6 +112,6 @@ jobs:
             channel: win
     with:
       author: marioaran64@gmail.com
-      name: ${{ env.APP_NAME }}
+      name: ${{ needs.build.outputs.APP_NAME }}
       file_name: ${{ needs.build_native.outputs.APP_NAME }}-${{ matrix.name }}
       os: ${{ matrix.channel }}
