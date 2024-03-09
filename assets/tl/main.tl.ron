@@ -1,0 +1,59 @@
+#![enable(implicit_some)]
+(
+	moments: {
+		"5s":(
+			happenings: [{
+				"happens::SpawnDynamicScene": (
+					path: "scn/intro_trigger.scn.ron",
+				),
+			}]
+		),
+		"10s": (
+			label: "despawn_orb",
+			happenings: [{
+				"happens::Despawn": (
+					entity: "Orb",
+				),
+				// Disable portal spawning unless this event is disabled
+				"happens::ModifyTimeline": [
+					(
+						path: "tl/main.tl.ron",
+						updates: [
+							(
+								moment: Labelled("open_orb_portal"),
+								disabled: Set( disabled: true ),
+							),
+						],
+					),
+				],
+			}],
+		),
+		"15s": (
+			label: "open_orb_portal",
+			happenings: [{
+				// Swap out for portal
+				"happens::Despawn": (
+					entity: "Orb",
+				),
+				"happens::SpawnTrigger": (
+					trigger: ( oneshot: true, causes: {
+						"happens::Despawn": ( entity: "Walls" ),
+					}),
+					sensor: Ball( radius: 0.25 ),
+					transform: (
+						translation: (0.0, 0.0, 0.75),
+						rotation: (0.0, 0.0, 0.0, 1.0),
+						scale: (1.0, 1.0, 1.0),
+					)
+				),
+			}]
+		),
+		"20s": (
+			label: "reset_loop",
+			happenings: [{
+				"happens::Print": (msg: "resetting loop!"),
+				"happens::ResetLoop": (),
+			}]
+		)
+	}
+)

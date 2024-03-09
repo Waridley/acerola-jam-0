@@ -1,0 +1,75 @@
+#![enable(implicit_some)]
+(
+	entities: {
+		4294967296: (
+			components: {
+				"kairoi::data::tl::Trigger": (
+					oneshot: false,
+					causes: {
+						"kairoi::scn::intro::FlipLever": (),
+						"happens::ModifyTimeline": [
+							(
+								path: "tl/main.tl.ron",
+								updates: [
+									(
+										moment: Labelled("despawn_orb"),
+										disabled: Set(disabled: true),
+									),
+								]
+							)
+						],
+					},
+					kind: Interact(message: "Flip Lever"),
+				),
+				"kairoi::data::phys::ColliderShape": Cylinder(half_height: 0.5, radius: 0.5),
+				"bevy_xpbd_3d::plugins::collision::collider::Sensor": (),
+				"bevy_transform::components::transform::Transform": (
+					translation: (x: -4.0, y: 0.0, z: 0.0 ),
+					// Quat::from_rotation_x(FRAC_PI_2)
+					rotation: (x: 0.70710677, y: 0.0, z: 0.0, w: 0.70710677 ),
+					scale: (x: 1.0, y: 1.0, z: 1.0 ),
+				),
+				"bevy_transform::components::global_transform::GlobalTransform": ((
+					matrix3: (
+						x_axis: (x: 1.0, y: 0.0, z: 0.0 ),
+						y_axis: (x: 0.0, y: 1.0, z: 0.0 ),
+						z_axis: (x: 0.0, y: 0.0, z: 1.0 ),
+					),
+					translation: (x: 0.0, y: 0.0, z: 0.0 ),
+				)),
+				"kairoi::scn::Resettable": (),
+				"bevy_hierarchy::components::children::Children": (
+					[4294967297,]
+				),
+				"bevy_render::view::visibility::Visibility": Visible,
+				"bevy_render::view::visibility::InheritedVisibility": (true),
+				"bevy_render::view::visibility::ViewVisibility": (true),
+			},
+		),
+		4294967297: (
+			components: {
+				"bevy_core::name::Name": "IntroLever",
+				"kairoi::data::LoadSprite3d": (
+					size: (0.25, 1.0),
+					transform: (
+						translation: (0.0, 0.0, 0.0),
+						rotation: (0.0, 0.0, 0.0, 1.0),
+						scale: (1.0, 1.0, 1.0),
+					),
+					atlas_layout: (
+						tile_size: (128.0, 512.0),
+						rows: 1,
+						columns: 2,
+					),
+					material: (
+						base_color_texture: "scn/lever_post.png",
+					)
+				),
+				"bevy_hierarchy::components::parent::Parent": (
+					4294967296
+				),
+			}
+		),
+	},
+	resources: {}
+)
