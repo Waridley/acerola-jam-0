@@ -338,16 +338,17 @@ pub fn replace_sprite3ds_with_handles(
 			transform,
 			material,
 		} = to_load.clone();
-		
+
 		let material = mats.add(material.load_using(&srv));
-		
+
 		let mesh = if let Some(LoadAtlas3d {
 			tile_size,
 			columns,
 			rows,
 			padding,
 			offset,
-		}) = atlas_layout {
+		}) = atlas_layout
+		{
 			let layout = TextureAtlasLayout::from_grid(tile_size, columns, rows, padding, offset);
 			let template = Rectangle::new(size.x, size.y).mesh();
 			let size = layout.size;
@@ -358,11 +359,11 @@ pub fn replace_sprite3ds_with_handles(
 				let u1 = rect.max.x / size.x;
 				let v0 = rect.min.y / size.y;
 				let v1 = rect.max.y / size.y;
-				
-				let mesh = template.clone()
-					.with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, vec![
-						[u1, v0], [u0, v0], [u0, v1], [u1, v1],
-					]);
+
+				let mesh = template.clone().with_inserted_attribute(
+					Mesh::ATTRIBUTE_UV_0,
+					vec![[u1, v0], [u0, v0], [u0, v1], [u1, v1]],
+				);
 				atlas_meshes.push(meshes.add(mesh));
 			}
 			let init_mesh = atlas_meshes[0].clone();
@@ -371,14 +372,14 @@ pub fn replace_sprite3ds_with_handles(
 				TextureAtlas {
 					layout: atlas_layouts.add(layout),
 					index: 0,
-				}
+				},
 			));
-			
+
 			init_mesh
 		} else {
 			meshes.add(Rectangle::new(size.x, size.y))
 		};
-		
+
 		let pbr = PbrBundle {
 			mesh,
 			material,

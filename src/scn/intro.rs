@@ -1,18 +1,14 @@
-use bevy::{pbr::NotShadowCaster, prelude::*};
+use crate::data::tl::ReflectDo;
+use bevy::{ecs::system::Command, pbr::NotShadowCaster, prelude::*};
 use bevy_xpbd_3d::{components::RigidBody, prelude::Collider};
-use std::f32::consts::FRAC_PI_2;
-use bevy::ecs::system::Command;
-use bevy_sprite3d::Sprite3dComponent;
 use serde::{Deserialize, Serialize};
-use crate::data::tl::{Do, ReflectDo};
+use std::f32::consts::FRAC_PI_2;
 
 pub struct IntroPlugin;
 
 impl Plugin for IntroPlugin {
 	fn build(&self, app: &mut App) {
-		app
-			.register_type::<FlipLever>()
-			.add_systems(Startup, setup);
+		app.register_type::<FlipLever>().add_systems(Startup, setup);
 	}
 }
 
@@ -111,14 +107,13 @@ pub struct FlipLever;
 impl Command for FlipLever {
 	fn apply(self, world: &mut World) {
 		let mut levers = world.query::<(&Name, &mut TextureAtlas)>();
-		let Some((_, mut atlas)) = levers.iter_mut(world).find(|(name, _)| &***name == "IntroLever") else {
+		let Some((_, mut atlas)) = levers
+			.iter_mut(world)
+			.find(|(name, _)| &***name == "IntroLever")
+		else {
 			error!("Failed to find IntroLever");
-			return
+			return;
 		};
-		atlas.index = if atlas.index == 0 {
-			1
-		} else {
-			0
-		}
+		atlas.index = if atlas.index == 0 { 1 } else { 0 }
 	}
 }
