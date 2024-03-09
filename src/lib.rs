@@ -50,7 +50,6 @@ impl Plugin for GamePlugin {
 				.set(AssetPlugin {
 					file_path: self.asset_dir.to_owned(),
 					processed_file_path: self.imported_asset_dir.to_owned(),
-					mode: AssetMode::Processed,
 					..default()
 				})
 				.set(WindowPlugin {

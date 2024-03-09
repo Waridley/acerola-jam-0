@@ -16,7 +16,7 @@ on:
 
 env:
   APP_NAME: kairoi
-  PUBLIC_URL: /kairoi/
+  PUBLIC_URL: ./
   PWD: ${GITHUB_WORKSPACE}
 
 jobs:
@@ -31,6 +31,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           submodules: recursive
+          lfs: true
 
       - uses: Swatinem/rust-cache@v2
 
@@ -46,7 +47,7 @@ jobs:
 
       - name: Build | Trunk
         run: |
-          trunk build --release --public-url ${{ env.PUBLIC_URL }}
+          trunk build --release
 
       - name: Post Build | Upload dist
         uses: actions/upload-artifact@v3
@@ -68,8 +69,8 @@ jobs:
 
       - name: Setup | Place dist
         run: |
-          cd dist
-          find . -type f -exec tar rvf ../${{env.APP_NAME}}-wasm32-unknown-unknown.tar.gz {} \;
+          cd dist 
+          find * -type f -exec tar rvf ../${{env.APP_NAME}}-wasm32-unknown-unknown.tar.gz {} \;
 
       - name: Deploy | Github Pages
         uses: peaceiris/actions-gh-pages@v3

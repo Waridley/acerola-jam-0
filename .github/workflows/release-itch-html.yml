@@ -32,6 +32,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           submodules: recursive
+          lfs: true
 
       - uses: Swatinem/rust-cache@v2
 
@@ -50,14 +51,14 @@ jobs:
         env:
           name: ${{env.APP_NAME}}
         run: |
-          trunk build --release --public-url /$PUBLIC_URL/
+          trunk build --release
 
       - name: Setup | Place dist
         run: |
           cd ./dist
           sed -i 's#/main-#./main-#g' index.html
           sed -i 's#/wasm_#./wasm_#g' index.html
-          find . -type f -exec zip ../../../${{env.APP_NAME}}-wasm32-unknown-unknown.zip {} \;
+          find . -type f -exec zip ../${{env.APP_NAME}}-wasm32-unknown-unknown.zip {} \;
 
       - name: Post Build | Upload Artifact
         uses: actions/upload-artifact@v3
@@ -70,7 +71,7 @@ jobs:
     secrets: inherit
     uses: ./.github/workflows/itch.yml
     with:
-      author: marioaran64@gmail.com
+      author: Waridley
       name: ${{ needs.build.outputs.APP_NAME }}
       file_name: ${{ needs.build.outputs.APP_NAME }}-wasm32-unknown-unknown.zip
       os: html5
