@@ -1,3 +1,4 @@
+use std::ops::RangeBounds;
 use crate::{
 	data::{
 		tl::{PortalTo, TimeLoop, Timeline, Trigger, TriggerKind},
@@ -10,18 +11,21 @@ use bevy::{prelude::*, utils::intern::Interned};
 use bevy_xpbd_3d::prelude::CollidingEntities;
 use leafwing_input_manager::prelude::ActionState;
 use sond_bevy_enum_components::WithVariant;
+use crate::data::tl::{Lifetime, LoopTime, SpawnedAt};
 
 pub struct TimeGraphPlugin;
 
 impl Plugin for TimeGraphPlugin {
 	fn build(&self, app: &mut App) {
-		app.add_systems(PreUpdate, (step_loop, take_portal))
+		app
+			.add_systems(First, handle_lifetimes)
+			.add_systems(PreUpdate, (step_loop, take_portal))
 			.add_systems(Update, (print_timelines, check_triggers));
 	}
 }
 
 pub fn step_loop(
-	mut cmds: Commands,
+	cmds: Commands,
 	mut tloop: ResMut<TimeLoop>,
 	timelines: Res<Assets<Timeline>>,
 	asrv: Res<AssetServer>,
@@ -29,39 +33,75 @@ pub fn step_loop(
 ) {
 	let prev = tloop.curr.1;
 	tloop.curr.1 += t.delta();
-	for (id, tl) in timelines.iter() {
-		let path = asrv
-			.get_path(id)
-			.map_or_else(String::new, |path| format!("{path}: "));
-		if let Some(branch_from) = tl.branch_from.as_ref() {
-			if (prev..tloop.curr.1).contains(&branch_from.1) {
-				info!(target: "time_graph", "{path}: branching from {branch_from:?}")
-			}
+	let id = tloop.curr.0;
+	handle_happenings(
+		cmds,
+		&asrv,
+		&timelines,
+		// Would seem to make more sense to only handle events that have
+		// happened *since* the last update, but using `Bound::Excluded`
+		// for `prev` would potentially result in unexpectedly missed
+		// events when resetting the loop to exactly `prev`.
+		prev..tloop.curr.1,
+		id,
+	)
+}
+
+pub fn handle_happenings<R: RangeBounds<LoopTime> + Clone>(
+	mut cmds: Commands,
+	asrv: &AssetServer,
+	timelines: &Assets<Timeline>,
+	range: R,
+	tl: AssetId<Timeline>,
+) {
+	let path = asrv
+		.get_path(tl)
+		.map_or_else(String::new, |path| format!("{path}: "));
+	let Some(tl) = timelines.get(tl) else {
+		error!("timeline {path} should exist");
+		return
+	};
+	if let Some(branch_from) = tl.branch_from.as_ref() {
+		handle_happenings(
+			cmds.reborrow(),
+			asrv,
+			timelines,
+			range.clone(),
+			branch_from.0,
+		);
+		if range.contains(&branch_from.1) {
+			info!(target: "time_graph", "{path}: branching from {branch_from:?}")
 		}
-		for (lt, mom) in tl.moments.range(prev..=tloop.curr.1) {
-			if mom.disabled {
-				debug!(target: "time_graph", "[disabled] {}@{lt}", mom.label.unwrap_or(Str(Interned(""))));
+	}
+	for (lt, mom) in tl.moments.range(range.clone()) {
+		if mom.disabled {
+			debug!(target: "time_graph", "[disabled] {}@{lt}", mom.label.unwrap_or(Str(Interned(""))));
+			continue;
+		}
+		debug!(target: "time_graph", desc = mom.desc.as_deref(), "{path}{}@{lt}", mom.label.unwrap_or(Str(Interned(""))));
+		for (i, happenings) in mom.happenings.iter().enumerate() {
+			if happenings.disabled {
+				debug!(target: "time_graph", "\t└ [disabled] {}", happenings.label.unwrap_or_else(|| (&*format!("{i}")).into()));
 				continue;
+			} else {
+				debug!(target: "time_graph", "\t└ {}", happenings.label.unwrap_or_else(|| (&*format!("{i}")).into()));
 			}
-			debug!(target: "time_graph", desc = mom.desc.as_deref(), "{path}{}@{lt}", mom.label.unwrap_or(Str(Interned(""))));
-			for happenings in mom.happenings.iter() {
-				if happenings.disabled {
-					debug!(target: "time_graph", "[disabled] {}", happenings.label.unwrap_or(Str(Interned(""))));
-					continue;
-				}
-				if let Some(label) = happenings.label.as_ref() {
-					debug!(target: "time_graph", "{label}");
-				}
-				for happen in &happenings.actions {
-					happen.apply(cmds.reborrow());
-				}
+			for happen in &happenings.actions {
+				happen.apply(cmds.reborrow());
 			}
 		}
-		if let Some(merge_into) = tl.merge_into.as_ref() {
-			if (prev..tloop.curr.1).contains(&merge_into.1) {
-				debug!(target: "time_graph", "{path}: merging into {merge_into:?}")
-			}
+	}
+	if let Some(merge_into) = tl.merge_into.as_ref() {
+		if range.contains(&merge_into.1) {
+			debug!(target: "time_graph", "{path}: merging into {merge_into:?}")
 		}
+		handle_happenings(
+			cmds,
+			asrv,
+			timelines,
+			range,
+			merge_into.0,
+		);
 	}
 }
 
@@ -133,5 +173,17 @@ pub fn check_triggers(
 		}
 	} else if *vis == Visibility::Visible {
 		*vis = Visibility::Hidden
+	}
+}
+
+pub fn handle_lifetimes(
+	mut cmds: Commands,
+	q: Query<(Entity, &SpawnedAt, &Lifetime)>,
+	tl: Res<TimeLoop>,
+) {
+	for (id, timestamp, lifetime) in &q {
+		if tl.curr.1 - timestamp.0 >= lifetime.0 {
+			cmds.entity(id).despawn_recursive();
+		}
 	}
 }

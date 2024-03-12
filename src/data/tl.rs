@@ -34,7 +34,7 @@ pub struct TimeDataPlugin;
 impl Plugin for TimeDataPlugin {
 	fn build(&self, app: &mut App) {
 		app.init_asset::<Timeline>()
-			.register_type::<Print>()
+			.register_type::<Log>()
 			.register_type::<LoopTime>()
 			.register_type::<T>()
 			.register_type::<TPath>()
@@ -57,7 +57,7 @@ impl Plugin for TimeDataPlugin {
 
 		let assets = app.world.resource::<AssetServer>();
 
-		let main_path = AssetPath::from("tl/main.tl.ron");
+		let main_path = AssetPath::from("tl/intro.tl.ron");
 		let main = assets.load(main_path.clone());
 		let intro_complete_path = AssetPath::from("tl/intro_complete.tl.ron");
 		let intro_complete_branch = assets.load(intro_complete_path.clone());
@@ -200,6 +200,8 @@ impl SubAssign for LoopTime {
 }
 
 impl LoopTime {
+	pub const EPOCH: Self = Self(0);
+	
 	pub fn millis(self) -> i64 {
 		self.0
 	}
@@ -274,7 +276,7 @@ pub enum MomentRef {
 
 impl Default for TPath {
 	fn default() -> Self {
-		Self("tl/main.tl.ron".into(), default())
+		Self("tl/intro.tl.ron".into(), default())
 	}
 }
 
@@ -319,14 +321,34 @@ impl<T: Command + Clone + Reflect + Send + Sync> Do for T {
 #[derive(Reflect, Debug, Clone, Serialize, Deserialize)]
 #[reflect(Do, Serialize, Deserialize)]
 #[type_path = "happens"]
-pub struct Print {
+pub struct Log {
+	#[serde(default)]
+	pub level: LogLevel,
 	pub msg: Cow<'static, str>,
 }
 
-impl Command for Print {
+impl Command for Log {
 	fn apply(self, _world: &mut World) {
-		info!(target: "happens::Print", "{}", &self.msg)
+		match self.level {
+			LogLevel::Trace => trace!(target: "happens::Print", "{}", &self.msg),
+			LogLevel::Debug => debug!(target: "happens::Print", "{}", &self.msg),
+			LogLevel::Info => info!(target: "happens::Print", "{}", &self.msg),
+			LogLevel::Warn => warn!(target: "happens::Print", "{}", &self.msg),
+			LogLevel::Error => error!(target: "happens::Print", "{}", &self.msg),
+		}
 	}
+}
+
+#[derive(Reflect, Default, Debug, Copy, Clone, Serialize, Deserialize)]
+#[reflect(Serialize, Deserialize)]
+#[type_path = "happens"]
+pub enum LogLevel {
+	Trace,
+	Debug,
+	#[default]
+	Info,
+	Warn,
+	Error,
 }
 
 pub struct TimelineLoader {
@@ -1000,3 +1022,11 @@ impl List for DoList {
 		self.0.into_iter().map(|item| item.into_reflect()).collect()
 	}
 }
+
+#[derive(Component, Reflect, Debug, Deref, DerefMut, Serialize, Deserialize)]
+#[reflect(Serialize, Deserialize)]
+pub struct SpawnedAt(pub LoopTime);
+
+#[derive(Component, Reflect, Debug, Deref, DerefMut, Serialize, Deserialize)]
+#[reflect(Serialize, Deserialize)]
+pub struct Lifetime(pub LoopTime);

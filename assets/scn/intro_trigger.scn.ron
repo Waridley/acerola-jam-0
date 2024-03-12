@@ -9,7 +9,7 @@
 						"kairoi::scn::intro::FlipLever": (),
 						"happens::ModifyTimeline": [
 							(
-								path: "tl/main.tl.ron",
+								path: "tl/intro.tl.ron",
 								updates: [
 									(
 										moment: Labelled("despawn_orb"),

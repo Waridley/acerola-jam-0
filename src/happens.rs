@@ -2,7 +2,7 @@ use crate::{
 	data::{
 		phys::ColliderShape,
 		tl::{
-			AssetServerExt, LoadedTimelines, MomentRef, PortalTo, ReflectDo, TPath, TimeLoop,
+			LoadedTimelines, MomentRef, ReflectDo, TimeLoop,
 			Timeline, Trigger,
 		},
 		Str,
@@ -17,13 +17,13 @@ use bevy::{
 };
 use bevy_xpbd_3d::prelude::{Collider, Sensor};
 use serde::{Deserialize, Serialize};
+use crate::data::tl::{Lifetime, LoopTime, SpawnedAt};
 
 pub struct HappeningsPlugin;
 
 impl Plugin for HappeningsPlugin {
 	fn build(&self, app: &mut App) {
 		app.register_type::<SpawnTrigger>()
-			.register_type::<SpawnPortalTo>()
 			.register_type::<SpawnScene>()
 			.register_type::<SpawnDynamicScene>()
 			.register_type::<ModifyTimeline>()
@@ -41,14 +41,27 @@ pub struct TakeBranch(AssetPath<'static>);
 impl Command for TakeBranch {
 	fn apply(self, world: &mut World) {
 		let path = self.0.clone();
-		let Some(id) = world
-			.resource::<AssetServer>()
+		let curr = world.resource::<TimeLoop>().curr;
+		let srv = world.resource::<AssetServer>();
+		let Some(id) = srv
 			.get_path_id(self.0)
 			.map(UntypedAssetId::typed)
 		else {
 			error!("No `AssetId` for {path}");
 			return;
 		};
+		let Some(tl) = world
+			.resource::<Assets<Timeline>>()
+			.get(id)
+		else {
+			error!("Timeline {path} is not yet in the `Assets` resource");
+			return;
+		};
+		if tl.branch_from.map(|t| t.0) != Some(curr.0) {
+			error!("Timeline {path} does not branch from the current timeline");
+			return;
+		};
+		
 		world.resource_mut::<TimeLoop>().curr.0 = id;
 	}
 }
@@ -58,15 +71,18 @@ impl Command for TakeBranch {
 #[serde(default)]
 #[type_path = "happens"]
 pub struct SpawnTrigger {
+	pub name: Option<Name>,
 	pub trigger: Trigger,
 	pub sensor: ColliderShape,
 	pub transform: Transform,
 	pub global_transform: GlobalTransform,
+	pub lifetime: Option<LoopTime>,
 }
 
 impl Command for SpawnTrigger {
 	fn apply(self, world: &mut World) {
-		world.spawn((
+		let timestamp = SpawnedAt(world.resource::<TimeLoop>().curr.1);
+		let mut cmds = world.spawn((
 			TransformBundle {
 				local: self.transform,
 				global: self.global_transform,
@@ -75,38 +91,14 @@ impl Command for SpawnTrigger {
 			Sensor,
 			self.trigger,
 			Resettable,
+			timestamp,
 		));
-	}
-}
-
-#[derive(Component, Default, Clone, Reflect, Serialize, Deserialize)]
-#[reflect(Do, Serialize, Deserialize)]
-#[serde(default)]
-#[type_path = "happens"]
-pub struct SpawnPortalTo {
-	pub target: TPath,
-	pub sensor: ColliderShape,
-	pub transform: Transform,
-	pub global_transform: GlobalTransform,
-}
-
-impl Command for SpawnPortalTo {
-	fn apply(self, world: &mut World) {
-		let Some(t) = world
-			.resource::<AssetServer>()
-			.t_for_t_path(self.target.clone())
-		else {
-			error!("Timeline {} is not loaded", &self.target.0);
-			return;
-		};
-		world.spawn((
-			Collider::from(self.sensor.clone()),
-			self.transform,
-			self.global_transform,
-			Sensor,
-			PortalTo(t),
-			Resettable,
-		));
+		if let Some(name) = self.name {
+			cmds.insert(name);
+		}
+		if let Some(lt) = self.lifetime {
+			cmds.insert(Lifetime(lt));
+		}
 	}
 }
 
@@ -269,10 +261,13 @@ impl Command for Despawn {
 	}
 }
 
-#[derive(Debug, Clone, Reflect, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Reflect, Serialize, Deserialize)]
 #[reflect(Do, Serialize, Deserialize)]
 #[type_path = "happens"]
-pub struct ResetLoop {}
+#[serde(default)]
+pub struct ResetLoop {
+	pub to: LoopTime,
+}
 
 impl Command for ResetLoop {
 	fn apply(self, world: &mut World) {
@@ -282,7 +277,7 @@ impl Command for ResetLoop {
 			srv.reload(path)
 		}
 		let mut tloop = world.resource_mut::<TimeLoop>();
-		tloop.curr.1 = default();
+		tloop.curr.1 = self.to;
 		let mut q = world.query_filtered::<Entity, With<Resettable>>();
 		let mut to_despawn = Vec::new();
 		for id in q.iter(world) {
