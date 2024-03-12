@@ -22,6 +22,7 @@ use std::{
 	str::FromStr,
 	time::Duration,
 };
+use std::ops::{Add, AddAssign, Sub, SubAssign};
 
 use bevy::utils::{CowArc, HashMap};
 
@@ -79,7 +80,7 @@ impl Plugin for TimeDataPlugin {
 #[derive(
 	Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Deref, DerefMut, Reflect,
 )]
-pub struct LoopTime(Duration);
+pub struct LoopTime(i64);
 
 impl Serialize for LoopTime {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -104,31 +105,111 @@ impl FromStr for LoopTime {
 	type Err = DurationError;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		humantime::parse_duration(s).map(Self)
+		fn parse_unsigned(s: &str) -> Result<i64, DurationError> {
+			humantime::parse_duration(s)
+				.and_then(|dur| dur.as_millis().try_into().map_err(|_| DurationError::NumberOverflow))
+		}
+		match s.as_bytes()[0] {
+			b'-' => parse_unsigned(&s[1..]).map(std::ops::Neg::neg),
+			b'+' => parse_unsigned(&s[1..]),
+			_ => parse_unsigned(s),
+		}.map(Self)
 	}
 }
 
 impl Display for LoopTime {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-		write!(f, "{}", humantime::format_duration(self.0))
+		let sign = if self.0 < 0 { "-" } else { "" };
+		let dur = humantime::format_duration(Duration::from_millis(self.0.unsigned_abs()));
+		write!(f, "{sign}{dur}", )
 	}
 }
 
 impl From<f32> for LoopTime {
 	fn from(value: f32) -> Self {
-		Self(Duration::from_secs_f32(value))
+		Self(Duration::from_secs_f32(value.abs()).as_millis() as i64 * value.signum() as i64)
+	}
+}
+
+impl From<i64> for LoopTime {
+	fn from(value: i64) -> Self {
+		Self(value)
 	}
 }
 
 impl From<Duration> for LoopTime {
 	fn from(value: Duration) -> Self {
-		Self(value)
+		Self(value.as_millis().try_into().expect("Duration is too long for LoopTime"))
 	}
 }
 
-impl From<LoopTime> for Duration {
-	fn from(value: LoopTime) -> Self {
-		value.0
+impl Add<Duration> for LoopTime {
+	type Output = Self;
+	
+	fn add(self, rhs: Duration) -> Self::Output {
+		Self(self.0 + rhs.as_millis() as i64)
+	}
+}
+
+impl AddAssign<Duration> for LoopTime {
+	fn add_assign(&mut self, rhs: Duration) {
+		*self = *self + rhs;
+	}
+}
+
+impl Sub<Duration> for LoopTime {
+	type Output = Self;
+	
+	fn sub(self, rhs: Duration) -> Self::Output {
+		Self(self.0 - rhs.as_millis() as i64)
+	}
+}
+
+impl SubAssign<Duration> for LoopTime {
+	fn sub_assign(&mut self, rhs: Duration) {
+		*self = *self - rhs;
+	}
+}
+
+impl Add for LoopTime {
+	type Output = Self;
+	
+	fn add(self, rhs: Self) -> Self::Output {
+		Self(self.0 + rhs.0)
+	}
+}
+
+impl AddAssign for LoopTime {
+	fn add_assign(&mut self, rhs: Self) {
+		*self = *self + rhs
+	}
+}
+
+impl Sub for LoopTime {
+	type Output = Self;
+	
+	fn sub(self, rhs: Self) -> Self::Output {
+		Self(self.0 - rhs.0)
+	}
+}
+
+impl SubAssign for LoopTime {
+	fn sub_assign(&mut self, rhs: Self) {
+		*self = *self - rhs;
+	}
+}
+
+impl LoopTime {
+	pub fn millis(self) -> i64 {
+		self.0
+	}
+	
+	pub fn secs(self) -> i64 {
+		self.millis() / 1000
+	}
+	
+	pub fn secs_f32(self) -> f32 {
+		self.millis() as f32 / 1000.0
 	}
 }
 

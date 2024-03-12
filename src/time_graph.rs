@@ -28,7 +28,7 @@ pub fn step_loop(
 	t: Res<Time>,
 ) {
 	let prev = tloop.curr.1;
-	*tloop.curr.1 += t.delta();
+	tloop.curr.1 += t.delta();
 	for (id, tl) in timelines.iter() {
 		let path = asrv
 			.get_path(id)
