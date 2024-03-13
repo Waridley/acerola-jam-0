@@ -2290,6 +2290,7 @@ dependencies = [
  "bevy_xpbd_3d",
  "humantime",
  "leafwing-input-manager",
+ "parking_lot",
  "ron",
  "serde",
  "sond-bevy-enum-components",

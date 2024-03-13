@@ -10,6 +10,7 @@ use bevy::{
 use bevy_xpbd_3d::{components::RigidBody, parry::shape::SharedShape, prelude::Collider};
 use serde::{Deserialize, Serialize};
 use std::f32::consts::FRAC_PI_2;
+use parking_lot::RwLock;
 
 pub struct IntroPlugin;
 
@@ -51,8 +52,14 @@ pub fn setup(
 		Resettable::new(|mut cmds: EntityCommands| {
 			cmds.add(|id, world: &mut World| {
 				let mut entity = world.entity_mut(id);
-				entity.get_mut::<Transform>().expect("Player definitely has a Transform").translation.z = -8.0;
-				let mut player = entity.get_mut::<AnimationPlayer>().expect("Walls should have an AnimationPlayer");
+				entity
+					.get_mut::<Transform>()
+					.expect("Player definitely has a Transform")
+					.translation
+					.z = -8.0;
+				let mut player = entity
+					.get_mut::<AnimationPlayer>()
+					.expect("Walls should have an AnimationPlayer");
 				player.replay();
 				player.pause();
 			});
@@ -74,6 +81,11 @@ pub fn setup(
 			RigidBody::Static,
 			panel_col.clone(),
 			NotShadowCaster,
+			AvoidOccludingPlayer {
+				area_shape: RwLock::new(Some(SharedShape::cuboid(6.0, 6.0, 2.5))),
+				area_transform: Transform::from_translation(Vec3::NEG_Z * 2.5),
+				..default()
+			},
 		));
 		cmds.spawn((
 			PbrBundle {
@@ -121,7 +133,8 @@ pub fn setup(
 			panel_col.clone(),
 			NotShadowCaster,
 			AvoidOccludingPlayer {
-				area_shape: Some(SharedShape::cuboid(6.0, 6.0, 6.0)),
+				area_shape: RwLock::new(Some(SharedShape::cuboid(6.0, 6.0, 2.5))),
+				area_transform: Transform::from_translation(Vec3::NEG_Z * 2.5),
 				..default()
 			},
 		));

@@ -145,22 +145,24 @@ pub fn move_cam(
 
 pub fn dont_occlude_player(
 	player_q: Query<&GlobalTransform, WithVariant<player_entity::Root>>,
-	mut q: Query<(&GlobalTransform, &mut Visibility, &mut AvoidOccludingPlayer)>,
+	mut q: Query<(&GlobalTransform, &mut Visibility, &AvoidOccludingPlayer)>,
 ) {
 	let player = player_q.single();
-	for (xform, mut vis, mut test) in &mut q {
+	for (xform, mut vis, test) in &mut q {
+		
 		// TODO: use raycasting? Or a shader?
-		if let Some(shape) = test.shape() {
-			let point: Point<f32> = player.reparented_to(xform).translation.into();
+		if let Some(shape) = test.shape().as_ref() {
+			let shape_origin = *xform * test.area_transform;
+			let point: Point<f32> = player.reparented_to(&shape_origin).translation.into();
 			if *vis == Visibility::Hidden {
 				if !shape.contains_local_point(&Point::new(
 					point.x - (0.1 * point.x.signum()),
 					point.y - (0.1 * point.y.signum()),
-					point.z - 0.1 * point.z.signum(),
+					point.z - (0.1 * point.z.signum()),
 				)) {
 					*vis = Visibility::Visible
 				}
-		} else if shape.contains_local_point(&Point::new(
+			} else if shape.contains_local_point(&Point::new(
 				point.x + (0.1 * point.x.signum()),
 				point.y + (0.1 * point.y.signum()),
 				point.z + 0.1 * point.z.signum(),
