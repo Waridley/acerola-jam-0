@@ -7,12 +7,12 @@ use bevy::{
 		DynamicTuple, DynamicTupleStruct, GetTypeRegistration, ReflectFromPtr, ReflectMut,
 		ReflectOwned, ReflectRef, TupleStructFieldIter, TypeInfo, TypeRegistration, Typed,
 	},
+	render::render_resource::Face,
 	utils::{
 		intern::{Interned, Interner},
 		HashMap,
 	},
 };
-use bevy_sprite3d::{Sprite3dBundle, Sprite3dComponent};
 use serde::{de::DeserializeOwned, Deserialize, Deserializer, Serialize, Serializer};
 use std::{
 	any::Any,
@@ -387,10 +387,7 @@ pub fn replace_sprite3ds_with_handles(
 			..default()
 		};
 
-		cmds.insert(Sprite3dBundle {
-			params: Sprite3dComponent {},
-			pbr,
-		});
+		cmds.insert((pbr,));
 		cmds.remove::<LoadSprite3d>();
 	}
 }
@@ -419,6 +416,27 @@ pub struct LoadStdMat {
 	pub unlit: bool,
 	pub double_sided: bool,
 	pub emissive: Color,
+	pub emissive_texture: Option<AssetPath<'static>>,
+	pub perceptual_roughness: f32,
+	pub reflectance: f32,
+	pub cull_mode: Option<CullFace>,
+}
+
+#[derive(Reflect, Default, Copy, Clone, Debug, Serialize, Deserialize)]
+#[reflect(Serialize, Deserialize)]
+pub enum CullFace {
+	Front,
+	#[default]
+	Back,
+}
+
+impl From<CullFace> for Face {
+	fn from(value: CullFace) -> Self {
+		match value {
+			CullFace::Front => Face::Front,
+			CullFace::Back => Face::Back,
+		}
+	}
 }
 
 impl Default for LoadStdMat {
@@ -430,12 +448,16 @@ impl Default for LoadStdMat {
 			unlit: false,
 			double_sided: true,
 			emissive: Color::BLACK,
+			emissive_texture: None,
+			perceptual_roughness: 0.5,
+			reflectance: 0.5,
+			cull_mode: Some(CullFace::Back),
 		}
 	}
 }
 
 impl LoadStdMat {
-	pub fn load_using(self, asset_server: &AssetServer) -> StandardMaterial {
+	pub fn load_using(self, server: &AssetServer) -> StandardMaterial {
 		let Self {
 			base_color_texture,
 			base_color,
@@ -443,15 +465,43 @@ impl LoadStdMat {
 			unlit,
 			double_sided,
 			emissive,
+			emissive_texture,
+			perceptual_roughness,
+			reflectance,
+			cull_mode,
 		} = self;
 
 		StandardMaterial {
-			base_color_texture: base_color_texture.map(|path| asset_server.load(path)),
+			base_color_texture: base_color_texture.map(|path| server.load(path)),
 			base_color,
 			alpha_mode: alpha_mode.into(),
+			// depth_bias,
+			// depth_map,
+			// parallax_depth_scale,
+			// parallax_mapping_method,
+			// max_parallax_layer_count,
+			// lightmap_exposure,
+			// opaque_render_method,
 			unlit,
 			double_sided,
 			emissive,
+			emissive_texture: emissive_texture.map(|path| server.load(path)),
+			perceptual_roughness,
+			// metallic,
+			// metallic_roughness_texture,
+			reflectance,
+			// diffuse_transmission,
+			// specular_transmission,
+			// thickness,
+			// ior,
+			// attenuation_distance,
+			// attenuation_color,
+			// normal_map_texture,
+			// flip_normal_map_y,
+			// occlusion_texture,
+			cull_mode: cull_mode.map(Into::into),
+			// fog_enabled,
+			// deferred_lighting_pass_id,
 			..default()
 		}
 	}

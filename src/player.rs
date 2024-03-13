@@ -1,5 +1,8 @@
+use crate::{
+	data::{cam::cam_node, LoadAlphaMode, LoadAtlas3d, LoadSprite3d, LoadStdMat},
+	player::player_entity::WithPlayerEntity,
+};
 use bevy::prelude::*;
-use bevy_sprite3d::{Sprite3d, Sprite3dParams, Sprite3dPlugin};
 use bevy_tnua::{
 	controller::{TnuaController, TnuaControllerPlugin},
 	prelude::{TnuaBuiltinJump, TnuaBuiltinWalk, TnuaControllerBundle},
@@ -14,7 +17,7 @@ use leafwing_input_manager::prelude::*;
 use serde::{Deserialize, Serialize};
 use sond_bevy_enum_components::{EntityEnumCommands, EnumComponent, WithVariant};
 use std::{
-	f32::consts::{FRAC_PI_2, FRAC_PI_4},
+	f32::consts::{FRAC_PI_2, FRAC_PI_4, FRAC_PI_8},
 	time::Duration,
 };
 
@@ -26,24 +29,13 @@ impl Plugin for PlayerPlugin {
 			TnuaControllerPlugin,
 			TnuaXpbd3dPlugin,
 			InputManagerPlugin::<Action>::default(),
-			Sprite3dPlugin,
 		))
-		.add_systems(
-			Update,
-			(
-				move_player,
-				animate_player,
-				spawn_player.run_if(resource_exists::<PlayerSpriteSheet>),
-			),
-		);
-		let assets = app.world.resource::<AssetServer>();
-		let id = assets.load("player.png");
-		app.insert_resource(PlayerSpriteSheet(id));
+		.add_systems(Startup, spawn_player)
+		.add_systems(Update, (move_player, animate_player));
 	}
 }
 
-pub type PlayerTag = TnuaController;
-pub type IsPlayer = With<PlayerTag>;
+pub type IsPlayer = WithPlayerEntity;
 
 #[derive(EnumComponent, Copy, Clone, Debug, Reflect, Serialize, Deserialize)]
 #[reflect(Serialize, Deserialize)]
@@ -52,19 +44,7 @@ pub enum PlayerEntity {
 	Sprite,
 }
 
-#[derive(Resource)]
-pub struct PlayerSpriteSheet(pub Handle<Image>);
-
-pub fn spawn_player(
-	mut cmds: Commands,
-	assets: Res<AssetServer>,
-	mut params: Sprite3dParams,
-	sheet: Res<PlayerSpriteSheet>,
-) {
-	if !assets.is_loaded_with_dependencies(sheet.0.clone()) {
-		return;
-	}
-
+pub fn spawn_player(mut cmds: Commands) {
 	let input_map = InputMap::new([
 		(Action::Move, UserInput::from(VirtualDPad::wasd())),
 		(Action::Move, VirtualDPad::arrow_keys().into()),
@@ -77,12 +57,9 @@ pub fn spawn_player(
 		(Action::Interact, GamepadButtonType::East.into()),
 	]);
 
-	let layout = TextureAtlasLayout::from_grid(Vec2::new(256.0, 512.0), 4, 4, None, None);
-	let layout = params.atlas_layouts.add(layout);
-
 	cmds.spawn((
 		TransformBundle {
-			local: Transform::from_translation(Vec3::NEG_Y * 4.0),
+			local: Transform::from_translation(Vec3::new(0.0, -3.0, 0.1)),
 			..default()
 		},
 		VisibilityBundle::default(),
@@ -105,7 +82,7 @@ pub fn spawn_player(
 	.with_enum(player_entity::Root)
 	.with_children(|cmds| {
 		cmds.spawn((
-			Sprite3d {
+			LoadSprite3d {
 				transform: Transform {
 					translation: Vec3 {
 						x: 0.0,
@@ -118,12 +95,25 @@ pub fn spawn_player(
 					rotation: Quat::from_rotation_x(FRAC_PI_2),
 					..default()
 				},
-				image: sheet.0.clone(),
-				alpha_mode: AlphaMode::Blend,
-				pixels_per_metre: 512.0,
+				size: Vec2::new(0.5, 1.0),
+				atlas_layout: Some(LoadAtlas3d {
+					tile_size: Vec2::new(256.0, 512.0),
+					columns: 4,
+					rows: 4,
+					padding: None,
+					offset: None,
+				}),
+				material: LoadStdMat {
+					base_color_texture: Some("player.png".into()),
+					alpha_mode: LoadAlphaMode::Blend,
+					perceptual_roughness: 1.0,
+					reflectance: 0.0,
+					double_sided: true,
+					cull_mode: None,
+					..default()
+				},
 				..default()
-			}
-			.bundle_with_atlas(&mut params, TextureAtlas { layout, index: 0 }),
+			},
 			PlayerAnimationState {
 				timer: Timer::new(Duration::from_millis(350), TimerMode::Repeating),
 				curr_animation: default(),
@@ -131,7 +121,6 @@ pub fn spawn_player(
 		))
 		.with_enum(player_entity::Sprite);
 	});
-	cmds.remove_resource::<PlayerSpriteSheet>();
 }
 
 #[derive(Debug, Actionlike, Copy, Clone, PartialEq, Eq, Hash, Reflect, Serialize, Deserialize)]
@@ -146,6 +135,8 @@ pub enum Action {
 pub fn move_player(
 	mut q: Query<(Entity, &mut TnuaController, &ActionState<Action>)>,
 	mut anim_q: Query<(&mut PlayerAnimationState, &Parent)>,
+	mut cam_q: Query<&mut Transform, WithVariant<cam_node::Anchor>>,
+	t: Res<Time>,
 ) {
 	for (id, mut ctrl, action_state) in &mut q {
 		let v = action_state
@@ -163,6 +154,15 @@ pub fn move_player(
 			spring_dampening: 0.5,
 			..default()
 		});
+
+		if v.x.abs() > 0.2 {
+			if let Ok(mut xform) = cam_q.get_single_mut() {
+				xform.rotation = xform.rotation.slerp(
+					Quat::from_rotation_z(-v.x.signum() * FRAC_PI_8 * 0.16),
+					t.delta_seconds(),
+				);
+			}
+		}
 
 		for (mut anim_state, parent) in &mut anim_q {
 			if parent.get() == id {

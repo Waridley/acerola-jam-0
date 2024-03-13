@@ -1,54 +1,7 @@
 #![enable(implicit_some)]
 (
-	branch_from: ("tl/area_1.tl.ron", "-5s"),
+	branch_from: ("tl/area_1.tl.ron", "19s"),
 	moments: {
-		"5s":(
-			happenings: [{
-				"happens::SpawnDynamicScene": (
-					path: "scn/intro_trigger.scn.ron",
-				),
-			}]
-		),
-		"10s": (
-			label: "despawn_orb",
-			happenings: [{
-				"happens::Despawn": (
-					entity: "Orb",
-				),
-				// Disable portal spawning unless this event is disabled
-				"happens::ModifyTimeline": [
-					(
-						path: "tl/intro.tl.ron",
-						updates: [
-							(
-								moment: Labelled("open_orb_portal"),
-								disabled: Set( disabled: true ),
-							),
-						],
-					),
-				],
-			}],
-		),
-		"15s": (
-			label: "open_orb_portal",
-			happenings: [{
-				// Swap out for portal
-				"happens::Despawn": (
-					entity: "Orb",
-				),
-				"happens::SpawnTrigger": (
-					trigger: ( oneshot: true, causes: {
-						"happens::Despawn": ( entity: "Walls" ),
-					}),
-					sensor: Ball( radius: 0.25 ),
-					transform: (
-						translation: (0.0, 0.0, 0.75),
-						rotation: (0.0, 0.0, 0.0, 1.0),
-						scale: (1.0, 1.0, 1.0),
-					)
-				),
-			}]
-		),
 		"20s": (
 			label: "spawn_reset_trigger",
 			happenings: [{
@@ -57,8 +10,9 @@
 					trigger: (
 						oneshot: true,
 						causes: {
-							"happens::Log": (msg: "resetting loop!"),
+							"happens::Log": ( msg: "resetting loop!" ),
 							"happens::ResetLoop": ( to: "0s" ),
+							"happens::MovePlayerTo": (0.0, -3.0, 0.1),
 						},
 					),
 					sensor: Cuboid( x: 12.0, y: 12.0, z: 12.0 ),

@@ -18,11 +18,10 @@ use std::{
 	borrow::Cow,
 	collections::BTreeMap,
 	fmt::{Debug, Display, Formatter},
-	ops::{Index, IndexMut},
+	ops::{Add, AddAssign, Index, IndexMut, Sub, SubAssign},
 	str::FromStr,
 	time::Duration,
 };
-use std::ops::{Add, AddAssign, Sub, SubAssign};
 
 use bevy::utils::{CowArc, HashMap};
 
@@ -57,19 +56,15 @@ impl Plugin for TimeDataPlugin {
 
 		let assets = app.world.resource::<AssetServer>();
 
-		let main_path = AssetPath::from("tl/intro.tl.ron");
-		let main = assets.load(main_path.clone());
-		let intro_complete_path = AssetPath::from("tl/intro_complete.tl.ron");
-		let intro_complete_branch = assets.load(intro_complete_path.clone());
+		let intro_path = AssetPath::from("tl/intro.tl.ron");
+		let intro = assets.load(intro_path.clone());
+		let area_path = AssetPath::from("tl/area_1.tl.ron");
+		let area_1 = assets.load(area_path.clone());
 		app.insert_resource(TimeLoop {
-			curr: T(main.id(), default()),
+			curr: T(intro.id(), default()),
 		});
 		app.insert_resource(LoadedTimelines(
-			[
-				(main_path, main),
-				(intro_complete_path, intro_complete_branch),
-			]
-			.into(),
+			[(area_path, area_1), (intro_path, intro)].into(),
 		));
 	}
 }
@@ -106,14 +101,18 @@ impl FromStr for LoopTime {
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		fn parse_unsigned(s: &str) -> Result<i64, DurationError> {
-			humantime::parse_duration(s)
-				.and_then(|dur| dur.as_millis().try_into().map_err(|_| DurationError::NumberOverflow))
+			humantime::parse_duration(s).and_then(|dur| {
+				dur.as_millis()
+					.try_into()
+					.map_err(|_| DurationError::NumberOverflow)
+			})
 		}
 		match s.as_bytes()[0] {
 			b'-' => parse_unsigned(&s[1..]).map(std::ops::Neg::neg),
 			b'+' => parse_unsigned(&s[1..]),
 			_ => parse_unsigned(s),
-		}.map(Self)
+		}
+		.map(Self)
 	}
 }
 
@@ -121,7 +120,7 @@ impl Display for LoopTime {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		let sign = if self.0 < 0 { "-" } else { "" };
 		let dur = humantime::format_duration(Duration::from_millis(self.0.unsigned_abs()));
-		write!(f, "{sign}{dur}", )
+		write!(f, "{sign}{dur}",)
 	}
 }
 
@@ -139,13 +138,18 @@ impl From<i64> for LoopTime {
 
 impl From<Duration> for LoopTime {
 	fn from(value: Duration) -> Self {
-		Self(value.as_millis().try_into().expect("Duration is too long for LoopTime"))
+		Self(
+			value
+				.as_millis()
+				.try_into()
+				.expect("Duration is too long for LoopTime"),
+		)
 	}
 }
 
 impl Add<Duration> for LoopTime {
 	type Output = Self;
-	
+
 	fn add(self, rhs: Duration) -> Self::Output {
 		Self(self.0 + rhs.as_millis() as i64)
 	}
@@ -159,7 +163,7 @@ impl AddAssign<Duration> for LoopTime {
 
 impl Sub<Duration> for LoopTime {
 	type Output = Self;
-	
+
 	fn sub(self, rhs: Duration) -> Self::Output {
 		Self(self.0 - rhs.as_millis() as i64)
 	}
@@ -173,7 +177,7 @@ impl SubAssign<Duration> for LoopTime {
 
 impl Add for LoopTime {
 	type Output = Self;
-	
+
 	fn add(self, rhs: Self) -> Self::Output {
 		Self(self.0 + rhs.0)
 	}
@@ -187,7 +191,7 @@ impl AddAssign for LoopTime {
 
 impl Sub for LoopTime {
 	type Output = Self;
-	
+
 	fn sub(self, rhs: Self) -> Self::Output {
 		Self(self.0 - rhs.0)
 	}
@@ -201,15 +205,15 @@ impl SubAssign for LoopTime {
 
 impl LoopTime {
 	pub const EPOCH: Self = Self(0);
-	
+
 	pub fn millis(self) -> i64 {
 		self.0
 	}
-	
+
 	pub fn secs(self) -> i64 {
 		self.millis() / 1000
 	}
-	
+
 	pub fn secs_f32(self) -> f32 {
 		self.millis() as f32 / 1000.0
 	}

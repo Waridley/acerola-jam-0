@@ -7,17 +7,7 @@
 					oneshot: false,
 					causes: {
 						"kairoi::scn::intro::FlipLever": (),
-						"happens::ModifyTimeline": [
-							(
-								path: "tl/intro.tl.ron",
-								updates: [
-									(
-										moment: Labelled("despawn_orb"),
-										disabled: Set(disabled: true),
-									),
-								]
-							)
-						],
+						"happens::TakeBranch": ("tl/area_1.tl.ron"),
 					},
 					kind: Interact(message: "Flip Lever"),
 				),

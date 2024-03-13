@@ -2,7 +2,7 @@ use crate::{
 	data::SystemRegistry,
 	scn::{clock::ClockScene, intro::IntroPlugin},
 };
-use bevy::{pbr::CascadeShadowConfigBuilder, prelude::*};
+use bevy::{ecs::system::EntityCommands, pbr::CascadeShadowConfigBuilder, prelude::*};
 use bevy_xpbd_3d::{components::RigidBody, prelude::Collider};
 use serde::{Deserialize, Serialize};
 use std::f32::consts::FRAC_PI_6;
@@ -58,9 +58,52 @@ pub fn setup(
 	cmds.run_system(sys_reg.spawn_env);
 }
 
-#[derive(Component, Copy, Clone, Debug, Reflect, Serialize, Deserialize)]
-#[reflect(Component, Serialize, Deserialize)]
-pub struct Resettable;
+#[derive(Component, Reflect, Deref, DerefMut, Serialize, Deserialize)]
+#[reflect(Default, Component, Serialize, Deserialize, no_field_bounds)]
+#[serde(default)]
+pub struct Resettable {
+	#[reflect(ignore)]
+	#[serde(skip)]
+	pub resetter: Box<dyn Resetter>,
+}
+
+impl Resettable {
+	pub fn new(resetter: impl Resetter + 'static) -> Self {
+		Self {
+			resetter: Box::new(resetter),
+		}
+	}
+}
+
+impl Default for Resettable {
+	fn default() -> Self {
+		Self {
+			resetter: default_resetter(),
+		}
+	}
+}
+
+pub trait Resetter: Send + Sync {
+	fn defer_reset(&self, cmds: EntityCommands);
+}
+
+impl<F: Fn(EntityCommands) + Send + Sync> Resetter for F {
+	fn defer_reset(&self, cmds: EntityCommands) {
+		self(cmds)
+	}
+}
+
+pub fn default_resetter() -> Box<dyn Resetter> {
+	Box::new(despawn_self::<true>)
+}
+
+fn despawn_self<const RECURSIVE: bool>(mut cmds: EntityCommands) {
+	if RECURSIVE {
+		cmds.despawn_recursive();
+	} else {
+		cmds.despawn();
+	}
+}
 
 pub fn spawn_environment(
 	mut cmds: Commands,
@@ -78,7 +121,7 @@ pub fn spawn_environment(
 		},
 		RigidBody::Static,
 		Collider::cuboid(1.0, 1.0, 1.0),
-		Resettable,
+		Resettable::default(),
 	));
 	cmds.spawn((
 		PbrBundle {
@@ -92,7 +135,7 @@ pub fn spawn_environment(
 		},
 		RigidBody::Static,
 		Collider::cuboid(1.0, 1.0, 1.0),
-		Resettable,
+		Resettable::default(),
 	));
 	cmds.spawn((
 		PbrBundle {
@@ -106,7 +149,7 @@ pub fn spawn_environment(
 		},
 		RigidBody::Static,
 		Collider::cuboid(1.0, 1.0, 1.0),
-		Resettable,
+		Resettable::default(),
 	));
 	cmds.spawn((
 		PbrBundle {
@@ -120,7 +163,7 @@ pub fn spawn_environment(
 		},
 		RigidBody::Static,
 		Collider::cuboid(1.0, 1.0, 1.0),
-		Resettable,
+		Resettable::default(),
 	));
 
 	cmds.spawn((
@@ -133,13 +176,13 @@ pub fn spawn_environment(
 		},
 		Collider::sphere(0.3),
 		RigidBody::Static,
-		Resettable,
+		Resettable::default(),
 	));
 
 	let clock_anchor = cmds.spawn((
 		TransformBundle::from_transform(Transform::from_translation(Vec3::NEG_Y * 0.6)),
 		VisibilityBundle::default(),
-		Resettable,
+		Resettable::default(),
 	));
 	scene_spawner.spawn_as_child(clock.0.clone(), clock_anchor.id());
 }

@@ -2,32 +2,35 @@ use crate::{
 	data::{
 		phys::ColliderShape,
 		tl::{
-			LoadedTimelines, MomentRef, ReflectDo, TimeLoop,
+			Lifetime, LoadedTimelines, LoopTime, MomentRef, ReflectDo, SpawnedAt, TimeLoop,
 			Timeline, Trigger,
 		},
 		Str,
 	},
+	player::player_entity::Root,
 	scn::{spawn_environment, Resettable},
 };
 use bevy::{
 	asset::{AssetPath, UntypedAssetId},
-	ecs::system::{Command, RunSystemOnce},
+	ecs::system::{Command, CommandQueue, RunSystemOnce},
 	prelude::*,
 	utils::HashMap,
 };
 use bevy_xpbd_3d::prelude::{Collider, Sensor};
 use serde::{Deserialize, Serialize};
-use crate::data::tl::{Lifetime, LoopTime, SpawnedAt};
+use sond_bevy_enum_components::WithVariant;
 
 pub struct HappeningsPlugin;
 
 impl Plugin for HappeningsPlugin {
 	fn build(&self, app: &mut App) {
-		app.register_type::<SpawnTrigger>()
+		app.register_type::<TakeBranch>()
+			.register_type::<SpawnTrigger>()
 			.register_type::<SpawnScene>()
 			.register_type::<SpawnDynamicScene>()
 			.register_type::<ModifyTimeline>()
 			.register_type::<Despawn>()
+			.register_type::<MovePlayerTo>()
 			.register_type::<ResetLoop>();
 	}
 }
@@ -40,29 +43,36 @@ pub struct TakeBranch(AssetPath<'static>);
 
 impl Command for TakeBranch {
 	fn apply(self, world: &mut World) {
-		let path = self.0.clone();
-		let curr = world.resource::<TimeLoop>().curr;
+		let branch_path = self.0.clone();
+		// let curr_id = world.resource::<TimeLoop>().curr.0;
+		// let timelines = world.resource::<Assets<Timeline>>();
+		// let curr_tl = timelines
+		// 	.get(curr_id)
+		// 	.expect("Can't be missing the current timeline");
 		let srv = world.resource::<AssetServer>();
-		let Some(id) = srv
-			.get_path_id(self.0)
+		let Some(branch_id) = srv
+			.get_path_id(branch_path.clone())
 			.map(UntypedAssetId::typed)
 		else {
-			error!("No `AssetId` for {path}");
+			error!("No `AssetId` for {branch_path}");
 			return;
 		};
-		let Some(tl) = world
-			.resource::<Assets<Timeline>>()
-			.get(id)
-		else {
-			error!("Timeline {path} is not yet in the `Assets` resource");
-			return;
-		};
-		if tl.branch_from.map(|t| t.0) != Some(curr.0) {
-			error!("Timeline {path} does not branch from the current timeline");
-			return;
-		};
-		
-		world.resource_mut::<TimeLoop>().curr.0 = id;
+		// let Some(tl) = timelines.get(branch_id) else {
+		// 	error!("Timeline {branch_path} is not yet in the `Assets` resource");
+		// 	return;
+		// };
+
+		// TODO: To truly validate branches, would have to follow all branch/merge paths
+		//  until certain there's no way the new branch could be reached from the
+		//  current timeline.
+
+		// if tl.branch_from.map(|t| t.0) != Some(curr_id)
+		// && curr_tl.branch_from.map(|t| t.0) != Some(branch_id) {
+		// 	error!("Timeline {branch_path} does not branch from the current timeline");
+		// 	return;
+		// };
+
+		world.resource_mut::<TimeLoop>().curr.0 = branch_id;
 	}
 }
 
@@ -90,7 +100,7 @@ impl Command for SpawnTrigger {
 			Collider::from(self.sensor.clone()),
 			Sensor,
 			self.trigger,
-			Resettable,
+			Resettable::default(),
 			timestamp,
 		));
 		if let Some(name) = self.name {
@@ -261,6 +271,20 @@ impl Command for Despawn {
 	}
 }
 
+#[derive(Default, Debug, Copy, Clone, Reflect, Serialize, Deserialize)]
+#[reflect(Do, Serialize, Deserialize)]
+#[type_path = "happens"]
+#[serde(transparent)]
+pub struct MovePlayerTo(pub Vec3);
+
+impl Command for MovePlayerTo {
+	fn apply(self, world: &mut World) {
+		let mut q = world.query_filtered::<&mut Transform, WithVariant<Root>>();
+		let mut player = q.single_mut(world);
+		player.translation = self.0;
+	}
+}
+
 #[derive(Default, Debug, Clone, Reflect, Serialize, Deserialize)]
 #[reflect(Do, Serialize, Deserialize)]
 #[type_path = "happens"]
@@ -278,14 +302,14 @@ impl Command for ResetLoop {
 		}
 		let mut tloop = world.resource_mut::<TimeLoop>();
 		tloop.curr.1 = self.to;
-		let mut q = world.query_filtered::<Entity, With<Resettable>>();
-		let mut to_despawn = Vec::new();
-		for id in q.iter(world) {
-			to_despawn.push(id);
+		let mut q = world.query::<(Entity, &Resettable)>();
+		let mut queue = CommandQueue::default();
+		let mut cmds = Commands::new(&mut queue, &*world);
+		for (id, reset) in q.iter(world) {
+			let cmds = cmds.entity(id);
+			reset.defer_reset(cmds);
 		}
-		for id in to_despawn {
-			world.entity_mut(id).despawn_recursive();
-		}
+		queue.apply(world);
 		world.run_system_once(spawn_environment);
 	}
 }

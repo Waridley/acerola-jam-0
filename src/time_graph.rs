@@ -1,7 +1,6 @@
-use std::ops::RangeBounds;
 use crate::{
 	data::{
-		tl::{PortalTo, TimeLoop, Timeline, Trigger, TriggerKind},
+		tl::{Lifetime, LoopTime, PortalTo, SpawnedAt, TimeLoop, Timeline, Trigger, TriggerKind},
 		ui::InteractSign,
 		Str,
 	},
@@ -11,14 +10,13 @@ use bevy::{prelude::*, utils::intern::Interned};
 use bevy_xpbd_3d::prelude::CollidingEntities;
 use leafwing_input_manager::prelude::ActionState;
 use sond_bevy_enum_components::WithVariant;
-use crate::data::tl::{Lifetime, LoopTime, SpawnedAt};
+use std::ops::Range;
 
 pub struct TimeGraphPlugin;
 
 impl Plugin for TimeGraphPlugin {
 	fn build(&self, app: &mut App) {
-		app
-			.add_systems(First, handle_lifetimes)
+		app.add_systems(First, handle_lifetimes)
 			.add_systems(PreUpdate, (step_loop, take_portal))
 			.add_systems(Update, (print_timelines, check_triggers));
 	}
@@ -47,11 +45,11 @@ pub fn step_loop(
 	)
 }
 
-pub fn handle_happenings<R: RangeBounds<LoopTime> + Clone>(
+pub fn handle_happenings(
 	mut cmds: Commands,
 	asrv: &AssetServer,
 	timelines: &Assets<Timeline>,
-	range: R,
+	range: Range<LoopTime>,
 	tl: AssetId<Timeline>,
 ) {
 	let path = asrv
@@ -59,16 +57,23 @@ pub fn handle_happenings<R: RangeBounds<LoopTime> + Clone>(
 		.map_or_else(String::new, |path| format!("{path}: "));
 	let Some(tl) = timelines.get(tl) else {
 		error!("timeline {path} should exist");
-		return
+		return;
 	};
 	if let Some(branch_from) = tl.branch_from.as_ref() {
-		handle_happenings(
-			cmds.reborrow(),
-			asrv,
-			timelines,
-			range.clone(),
-			branch_from.0,
-		);
+		if range.start < branch_from.1 {
+			let end = if range.end < branch_from.1 {
+				range.end
+			} else {
+				branch_from.1
+			};
+			handle_happenings(
+				cmds.reborrow(),
+				asrv,
+				timelines,
+				range.start..end,
+				branch_from.0,
+			);
+		}
 		if range.contains(&branch_from.1) {
 			info!(target: "time_graph", "{path}: branching from {branch_from:?}")
 		}
@@ -95,13 +100,14 @@ pub fn handle_happenings<R: RangeBounds<LoopTime> + Clone>(
 		if range.contains(&merge_into.1) {
 			debug!(target: "time_graph", "{path}: merging into {merge_into:?}")
 		}
-		handle_happenings(
-			cmds,
-			asrv,
-			timelines,
-			range,
-			merge_into.0,
-		);
+		if range.end > merge_into.1 {
+			let start = if range.start > merge_into.1 {
+				range.start
+			} else {
+				merge_into.1
+			};
+			handle_happenings(cmds, asrv, timelines, start..range.end, merge_into.0);
+		}
 	}
 }
 

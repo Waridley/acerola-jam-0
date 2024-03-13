@@ -18,7 +18,7 @@ impl Plugin for PhysDataPlugin {
 	}
 }
 
-#[derive(Reflect, Component, Clone, Serialize, Deserialize)]
+#[derive(Reflect, Component, Clone, Debug, Serialize, Deserialize)]
 #[reflect(Default, Component, Serialize, Deserialize)]
 pub enum ColliderShape {
 	Ball {
@@ -99,10 +99,10 @@ pub fn insert_collider_shapes(mut cmds: Commands, q: Query<(Entity, &ColliderSha
 	}
 }
 
-impl From<ColliderShape> for Collider {
+impl From<ColliderShape> for SharedShape {
 	fn from(value: ColliderShape) -> Self {
 		use ColliderShape::*;
-		let shape = match value {
+		match value {
 			Ball { radius } => SharedShape::ball(radius),
 			Cuboid { x, y, z } => SharedShape::cuboid(x * 0.5, y * 0.5, z * 0.5),
 			Capsule { a, b, radius } => SharedShape::capsule(a.into(), b.into(), radius),
@@ -146,7 +146,12 @@ impl From<ColliderShape> for Collider {
 			} => SharedShape::round_cone(half_height, radius, border_radius),
 			RoundConvexPolyhedron {} => todo!(),
 			Custom {} => todo!(),
-		};
-		Self::from(shape)
+		}
+	}
+}
+
+impl From<ColliderShape> for Collider {
+	fn from(value: ColliderShape) -> Self {
+		Self::from(SharedShape::from(value))
 	}
 }
