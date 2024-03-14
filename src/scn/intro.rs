@@ -123,7 +123,11 @@ pub fn setup(
 
 	let panel_mesh = meshes.add(Cuboid::new(12.0, 12.0, 1.0));
 	let panel_col = Collider::cuboid(12.0, 12.0, 1.0);
-	let dark_gray = mats.add(Color::rgb(0.1, 0.1, 0.1));
+	let dark_gray = mats.add(StandardMaterial {
+		base_color: Color::rgb(0.1, 0.1, 0.1),
+		depth_bias: 2.0,
+		..default()
+	});
 
 	cmds.spawn((
 		PbrBundle {

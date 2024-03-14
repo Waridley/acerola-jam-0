@@ -19,7 +19,7 @@ impl Plugin for ClockPlugin {
 	fn build(&self, app: &mut App) {
 		app.add_systems(Startup, setup.after(crate::cam::setup))
 			.add_systems(
-				Update,
+				PostUpdate,
 				fade_clock_on_reset.run_if(in_state(GameState::ResettingLoop)),
 			);
 	}

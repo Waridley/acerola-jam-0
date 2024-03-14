@@ -6,12 +6,11 @@ use crate::{
 	scn::{clock::tick_hand, EnvironmentPlugin},
 	ui::GameUiPlugin,
 };
-use bevy::{prelude::*, reflect::TypeRegistryArc};
+use bevy::{asset::AssetMetaCheck, prelude::*, reflect::TypeRegistryArc};
 use bevy_asset_loader::prelude::*;
 use bevy_xpbd_3d::{plugins::PhysicsPlugins, prelude::Gravity};
 use data::DataPlugin;
 use std::sync::OnceLock;
-use bevy::asset::AssetMetaCheck;
 use time_graph::TimeGraphPlugin;
 
 pub mod cam;
@@ -45,7 +44,7 @@ pub struct GamePlugin {
 impl Plugin for GamePlugin {
 	fn build(&self, app: &mut App) {
 		app.insert_resource(AssetMetaCheck::Never);
-		
+
 		app.init_state::<GameState>().add_loading_state(
 			LoadingState::new(GameState::Loading)
 				.continue_to_state(GameState::Running)

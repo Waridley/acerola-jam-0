@@ -17,6 +17,7 @@ use bevy::{
 	prelude::*,
 	utils::HashMap,
 };
+use bevy_tnua::prelude::TnuaController;
 use bevy_xpbd_3d::prelude::{Collider, Sensor};
 use serde::{Deserialize, Serialize};
 use sond_bevy_enum_components::WithVariant;
@@ -314,7 +315,10 @@ impl Command for ResetLoop {
 		tloop.resetting_to = self.to;
 		world
 			.resource_mut::<NextState<GameState>>()
-			.set(GameState::ResettingLoop)
+			.set(GameState::ResettingLoop);
+		let mut q = world.query::<&mut TnuaController>();
+		let mut ctrl = q.single_mut(world);
+		ctrl.neutralize_basis();
 	}
 }
 
