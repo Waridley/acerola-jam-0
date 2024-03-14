@@ -1,0 +1,30 @@
+#![enable(implicit_some)]
+(
+	branch_from: ("tl/area_1.tl.ron", "19s"),
+	moments: {
+		"20s": (
+			label: "spawn_reset_trigger",
+			happenings: [{
+				"happens::SpawnTrigger": (
+					name: "IntroResetTrigger",
+					trigger: (
+						oneshot: true,
+						causes: {
+							"happens::Log": ( msg: "resetting loop!" ),
+							"happens::ResetLoop": ( to: "0s" ),
+							"happens::MovePlayerTo": (0.0, 0.0, 0.1),
+						},
+					),
+					sensor: Cuboid( x: 12.0, y: 12.0, z: 12.0 ),
+					transform: (
+						translation: (0.0, 0.0, 4.5),
+						rotation: (0.0, 0.0, 0.0, 1.0),
+						scale: (1.0, 1.0, 1.0),
+					),
+					lifetime: "1s",
+				)
+			}]
+		)
+	},
+	merge_into: ("tl/area_1.tl.ron", "25s"),
+)
