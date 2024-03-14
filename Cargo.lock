@@ -3486,7 +3486,9 @@ dependencies = [
 name = "sond-bevy-enum-components"
 version = "0.1.0"
 dependencies = [
+ "bevy_app",
  "bevy_ecs",
+ "bevy_reflect",
  "sond-bevy-enum-components-macros",
 ]
 

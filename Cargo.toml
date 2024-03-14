@@ -59,7 +59,7 @@ bevy = { workspace = true }
 bevy_xpbd_3d = { version = "0.4.2", features = ["serialize"] }
 bevy-tnua = "0.15.0"
 bevy-tnua-xpbd3d = "0.2.0"
-sond-bevy-enum-components = { path = "bevy-enum-components" }
+sond-bevy-enum-components = { path = "bevy-enum-components", features = ["reflect"] }
 leafwing-input-manager = "0.13.3"
 parking_lot = "0.12.1"
 ron = "0.8.1"

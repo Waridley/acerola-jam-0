@@ -1,4 +1,4 @@
-use crate::{asset_server, scn::spawn_environment};
+use crate::asset_server;
 use bevy::{
 	asset::AssetPath,
 	ecs::system::SystemId,
@@ -14,6 +14,7 @@ use bevy::{
 	},
 };
 use serde::{de::DeserializeOwned, Deserialize, Deserializer, Serialize, Serializer};
+use sprites::{LoadSprite3d, SpriteSheet3dMeshes};
 use std::{
 	any::Any,
 	fmt,
@@ -23,6 +24,7 @@ use std::{
 
 pub mod cam;
 pub mod phys;
+pub mod sprites;
 pub mod tl;
 pub mod ui;
 
@@ -36,7 +38,7 @@ impl Plugin for DataPlugin {
 				Last,
 				(
 					replace_paths_with_handles::<Image>,
-					replace_sprite3ds_with_handles,
+					sprites::replace_sprite3ds_with_handles,
 					set_atlas_3d_meshes,
 				),
 			)
@@ -233,19 +235,11 @@ pub mod entity_path_str {
 }
 
 #[derive(Resource, Debug, Deref, DerefMut)]
-pub struct SystemRegistry {
-	pub spawn_env: SystemId,
-	#[deref]
-	pub dynamic: HashMap<Str, SystemId>,
-}
+pub struct SystemRegistry(#[deref] pub HashMap<Str, SystemId>);
 
 impl FromWorld for SystemRegistry {
-	fn from_world(world: &mut World) -> Self {
-		let spawn_env = world.register_system(spawn_environment);
-		Self {
-			spawn_env,
-			dynamic: default(),
-		}
+	fn from_world(_world: &mut World) -> Self {
+		Self(default())
 	}
 }
 
@@ -281,119 +275,6 @@ impl<T: Asset + Serialize + DeserializeOwned + Reflect + FromReflect> InlineAsse
 		asset_server().add(self.value)
 	}
 }
-
-#[derive(Component, Reflect, Clone, Debug, Serialize, Deserialize)]
-#[reflect(Component, Serialize, Deserialize)]
-#[serde(default)]
-pub struct LoadSprite3d {
-	pub size: Vec2,
-	pub atlas_layout: Option<LoadAtlas3d>,
-	pub transform: Transform,
-	pub material: LoadStdMat,
-}
-
-#[derive(Reflect, Clone, Debug, Serialize, Deserialize)]
-#[reflect(Serialize, Deserialize)]
-pub struct LoadAtlas3d {
-	pub tile_size: Vec2,
-	pub columns: usize,
-	pub rows: usize,
-	#[serde(default)]
-	pub padding: Option<Vec2>,
-	#[serde(default)]
-	pub offset: Option<Vec2>,
-}
-
-impl Default for LoadSprite3d {
-	fn default() -> Self {
-		Self {
-			size: Vec2::ONE,
-			atlas_layout: None,
-			transform: default(),
-			material: LoadStdMat {
-				base_color_texture: Some("bevy_logo_dark.png".into()),
-				base_color: Color::WHITE,
-				alpha_mode: LoadAlphaMode::Mask(0.5),
-				double_sided: true,
-				emissive: Color::BLACK,
-				..default()
-			},
-		}
-	}
-}
-
-pub fn replace_sprite3ds_with_handles(
-	mut cmds: Commands,
-	q: Query<(Entity, &LoadSprite3d)>,
-	mut meshes: ResMut<Assets<Mesh>>,
-	mut mats: ResMut<Assets<StandardMaterial>>,
-	mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
-	srv: Res<AssetServer>,
-) {
-	for (id, to_load) in &q {
-		let mut cmds = cmds.entity(id);
-		let LoadSprite3d {
-			size,
-			atlas_layout,
-			transform,
-			material,
-		} = to_load.clone();
-
-		let material = mats.add(material.load_using(&srv));
-
-		let mesh = if let Some(LoadAtlas3d {
-			tile_size,
-			columns,
-			rows,
-			padding,
-			offset,
-		}) = atlas_layout
-		{
-			let layout = TextureAtlasLayout::from_grid(tile_size, columns, rows, padding, offset);
-			let template = Rectangle::new(size.x, size.y).mesh();
-			let size = layout.size;
-			let len = layout.textures.len();
-			let mut atlas_meshes = Vec::with_capacity(len);
-			for rect in &layout.textures {
-				let u0 = rect.min.x / size.x;
-				let u1 = rect.max.x / size.x;
-				let v0 = rect.min.y / size.y;
-				let v1 = rect.max.y / size.y;
-
-				let mesh = template.clone().with_inserted_attribute(
-					Mesh::ATTRIBUTE_UV_0,
-					vec![[u1, v0], [u0, v0], [u0, v1], [u1, v1]],
-				);
-				atlas_meshes.push(meshes.add(mesh));
-			}
-			let init_mesh = atlas_meshes[0].clone();
-			cmds.insert((
-				SpriteSheet3dMeshes(atlas_meshes),
-				TextureAtlas {
-					layout: atlas_layouts.add(layout),
-					index: 0,
-				},
-			));
-
-			init_mesh
-		} else {
-			meshes.add(Rectangle::new(size.x, size.y))
-		};
-
-		let pbr = PbrBundle {
-			mesh,
-			material,
-			transform,
-			..default()
-		};
-
-		cmds.insert((pbr,));
-		cmds.remove::<LoadSprite3d>();
-	}
-}
-
-#[derive(Component, Debug, Deref, DerefMut)]
-pub struct SpriteSheet3dMeshes(pub Vec<Handle<Mesh>>);
 
 pub fn set_atlas_3d_meshes(
 	mut q: Query<(&mut Handle<Mesh>, &SpriteSheet3dMeshes, &TextureAtlas), Changed<TextureAtlas>>,

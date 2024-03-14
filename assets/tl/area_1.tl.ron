@@ -1,18 +1,23 @@
 #![enable(implicit_some)]
 (
 	moments: {
-		"1s": (
+		"500ms": (
 			happenings: [{
 				"kairoi::scn::intro::RaiseWalls": (),
 			}],
 		),
-		"5s": (
-			happenings: [{
-				"happens::SpawnDynamicScene": (
-					path: "scn/intro_trigger.scn.ron",
-				),
-			}]
-		),
+		// "5s": (
+		// 	happenings: [{
+		// 		"happens::SpawnDynamicScene": (
+		// 			path: "scn/intro_trigger.scn.ron",
+		// 			transform: (
+		// 				translation: (-2.0, 0.0, 0.0),
+		// 				rotation: (0.0, 0.0, 0.0, 1.0),
+		// 				scale: (1.0, 1.0, 1.0),
+		// 			),
+		// 		),
+		// 	}]
+		// ),
 		"20s": (
 			label: "spawn_reset_trigger",
 			happenings: [{

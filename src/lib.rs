@@ -4,7 +4,7 @@ use crate::{
 	happens::HappeningsPlugin,
 	player::PlayerPlugin,
 	scn::{
-		clock::{tick_hand, Hand},
+		clock::{tick_hand},
 		EnvironmentPlugin,
 	},
 	ui::GameUiPlugin,
@@ -84,8 +84,7 @@ impl Plugin for GamePlugin {
 			GameUiPlugin,
 		))
 		.add_systems(Startup, setup)
-		.add_systems(Update, tick_hand)
-		.register_type::<Hand>();
+		.add_systems(Update, tick_hand);
 
 		#[cfg(feature = "debugging")]
 		app.add_plugins(bevy_xpbd_3d::plugins::PhysicsDebugPlugin::default())

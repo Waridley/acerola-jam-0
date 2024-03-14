@@ -8,11 +8,11 @@ use crate::{
 		Str,
 	},
 	player::player_entity::Root,
-	scn::{spawn_environment, Resettable},
+	scn::Resettable,
 };
 use bevy::{
 	asset::{AssetPath, UntypedAssetId},
-	ecs::system::{Command, CommandQueue, RunSystemOnce},
+	ecs::system::{Command, CommandQueue},
 	prelude::*,
 	utils::HashMap,
 };
@@ -39,7 +39,7 @@ impl Plugin for HappeningsPlugin {
 #[reflect(Do, Serialize, Deserialize)]
 #[serde(default)]
 #[type_path = "happens"]
-pub struct TakeBranch(AssetPath<'static>);
+pub struct TakeBranch(pub AssetPath<'static>);
 
 impl Command for TakeBranch {
 	fn apply(self, world: &mut World) {
@@ -117,12 +117,18 @@ impl Command for SpawnTrigger {
 #[type_path = "happens"]
 pub struct SpawnScene {
 	pub path: AssetPath<'static>,
+	#[serde(default)]
+	pub transform: Transform,
 }
 
 impl Command for SpawnScene {
 	fn apply(self, world: &mut World) {
 		let handle = world.resource::<AssetServer>().load(self.path);
-		world.resource_mut::<SceneSpawner>().spawn(handle);
+		world.spawn(SceneBundle {
+			scene: handle,
+			transform: self.transform,
+			..default()
+		});
 	}
 }
 
@@ -131,12 +137,18 @@ impl Command for SpawnScene {
 #[type_path = "happens"]
 pub struct SpawnDynamicScene {
 	pub path: AssetPath<'static>,
+	#[serde(default)]
+	pub transform: Transform,
 }
 
 impl Command for SpawnDynamicScene {
 	fn apply(self, world: &mut World) {
 		let handle = world.resource::<AssetServer>().load(self.path);
-		world.resource_mut::<SceneSpawner>().spawn_dynamic(handle);
+		world.spawn(DynamicSceneBundle {
+			scene: handle,
+			transform: self.transform,
+			..default()
+		});
 	}
 }
 
@@ -310,6 +322,5 @@ impl Command for ResetLoop {
 			reset.defer_reset(cmds);
 		}
 		queue.apply(world);
-		world.run_system_once(spawn_environment);
 	}
 }
