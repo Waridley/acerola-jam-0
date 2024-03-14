@@ -1,7 +1,7 @@
 use crate::{
 	data::{
 		tl::{Lifetime, LoopTime, PortalTo, SpawnedAt, TimeLoop, Timeline, Trigger, TriggerKind},
-		ui::InteractSign,
+		ui::{InteractSign, InteractText},
 		Str,
 	},
 	player::{player_entity::Root, Action},
@@ -18,7 +18,7 @@ impl Plugin for TimeGraphPlugin {
 	fn build(&self, app: &mut App) {
 		app.add_systems(First, handle_lifetimes)
 			.add_systems(PreUpdate, (step_loop, take_portal))
-			.add_systems(Update, (print_timelines, check_triggers));
+			.add_systems(PostUpdate, (print_timelines, check_triggers));
 	}
 }
 
@@ -146,13 +146,15 @@ pub fn check_triggers(
 	mut cmds: Commands,
 	player: Query<(&CollidingEntities, &ActionState<Action>), WithVariant<Root>>,
 	triggers: Query<&Trigger>,
-	mut interact_sign: Query<(&mut Text, &mut Visibility), With<InteractSign>>,
+	mut interact_sign: Query<&mut Visibility, With<InteractSign>>,
+	mut interact_text: Query<&mut Text, With<InteractText>>,
 ) {
 	let Ok((colliding, inputs)) = player.get_single() else {
 		return;
 	};
 
-	let (mut text, mut vis) = interact_sign.single_mut();
+	let mut vis = interact_sign.single_mut();
+	let mut text = interact_text.single_mut();
 	let mut interact_msg = None;
 	for id in colliding.iter().copied() {
 		if let Ok(trigger) = triggers.get(id) {

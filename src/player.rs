@@ -1,5 +1,9 @@
 use crate::{
-	data::{cam::cam_node, LoadAlphaMode, LoadAtlas3d, LoadSprite3d, LoadStdMat},
+	data::{
+		cam::cam_node,
+		sprites::{LoadAtlas3d, LoadSprite3d},
+		LoadAlphaMode, LoadStdMat,
+	},
 	player::player_entity::WithPlayerEntity,
 };
 use bevy::prelude::*;
@@ -17,7 +21,7 @@ use leafwing_input_manager::prelude::*;
 use serde::{Deserialize, Serialize};
 use sond_bevy_enum_components::{EntityEnumCommands, EnumComponent, WithVariant};
 use std::{
-	f32::consts::{FRAC_PI_2, FRAC_PI_4, FRAC_PI_8},
+	f32::consts::{FRAC_PI_4, FRAC_PI_8},
 	time::Duration,
 };
 
@@ -59,7 +63,7 @@ pub fn spawn_player(mut cmds: Commands) {
 
 	cmds.spawn((
 		TransformBundle {
-			local: Transform::from_translation(Vec3::new(0.0, -3.0, 0.1)),
+			local: Transform::from_translation(Vec3::new(0.0, 0.0, 0.1)),
 			..default()
 		},
 		VisibilityBundle::default(),
@@ -91,8 +95,6 @@ pub fn spawn_player(mut cmds: Commands) {
 						// Nudge down to compensate for float height.
 						z: -0.125,
 					},
-					// Z is up.
-					rotation: Quat::from_rotation_x(FRAC_PI_2),
 					..default()
 				},
 				size: Vec2::new(0.5, 1.0),

@@ -1,17 +1,17 @@
 dev:
-	RUST_LOG="info,wgpu=warn,naga=warn,kairoi=debug,time_graph=debug" cargo run --package="kairoi-desktop" --profile="desktop" --features="debugging,bevy/file_watcher,bevy/asset_processor,bevy_dylib"
+	RUST_BACKTRACE=1 RUST_LOG="info,wgpu=warn,naga=warn,kairoi=debug,time_graph=debug" cargo run --package="kairoi-desktop" --profile="desktop" --features="debugging,bevy/file_watcher,bevy/asset_processor,bevy_dylib"
 
 release:
 	cargo run --package="kairoi-desktop" --profile="desktop-release"
 
 release-debug:
-	RUST_LOG="info,wgpu=warn,naga=warn,kairoi=debug,time_graph=debug" cargo run --package="kairoi-desktop" --profile="release-debug" --features="debugging"
+	RUST_BACKTRACE=1 RUST_LOG="info,wgpu=warn,naga=warn,kairoi=debug,time_graph=debug" cargo run --package="kairoi-desktop" --profile="release-debug" --features="debugging"
 
 serve:
 	trunk serve --open --public-url="/" --features="debugging"
 
 web:
-	trunk build --public-url="/" --features="debugging"
+	RUST_BACKTRACE=1 trunk build --public-url="/" --features="debugging"
 
 web-release:
 	trunk build --public-url="/" --release

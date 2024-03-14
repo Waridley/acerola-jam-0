@@ -149,7 +149,6 @@ pub fn dont_occlude_player(
 ) {
 	let player = player_q.single();
 	for (xform, mut vis, test) in &mut q {
-		
 		// TODO: use raycasting? Or a shader?
 		if let Some(shape) = test.shape().as_ref() {
 			let shape_origin = *xform * test.area_transform;
