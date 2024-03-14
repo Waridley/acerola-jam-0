@@ -19,4 +19,5 @@ All assets were made by me, except for the Bevy and jam logos, and builtin font
 from Bevy. Currently I am reserving copyright, but I will likely release them
 under something like Creative Commons later.
 
-Source code is licensed under the [EUPL version 1.2](LICENSE.txt)
+Source code is licensed under [MIT](LICENSE-MIT) or 
+[Apache-2.0](LICENSE-APACHE) at your option.

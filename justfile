@@ -14,13 +14,13 @@ serve-release:
 	trunk serve --release --no-spa --open --public-url="/" --features="debugging"
 
 web:
-	RUST_BACKTRACE=1 trunk build --public-url="/" --features="debugging"
+	RUST_BACKTRACE=1 trunk build --features="debugging"
 
 web-release:
-	trunk build --public-url="/" --release
+	trunk build --release
 
 web-release-debug:
-	trunk build --public-url="/" --profile="release-debug" --features="debugging"
+	trunk build --profile="release-debug" --features="debugging"
 
 test:
 	cargo test --workspace --features="vis_test"
