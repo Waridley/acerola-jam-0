@@ -21,7 +21,7 @@ pub fn setup(mut cmds: Commands, interact_icon: Res<InteractIcon>) {
 			style: Style {
 				flex_direction: FlexDirection::Row,
 				justify_self: JustifySelf::Center,
-				top: Val::Px(300.0),
+				top: Val::Percent(25.0),
 				..default()
 			},
 			visibility: Visibility::Hidden,

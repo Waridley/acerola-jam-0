@@ -24,11 +24,20 @@ use std::{
 };
 
 use bevy::utils::{CowArc, HashMap};
+use bevy_asset_loader::prelude::*;
 
 use super::Str;
 use serde::de::SeqAccess;
 
 pub struct TimeDataPlugin;
+
+#[derive(AssetCollection, Resource)]
+pub struct Timelines {
+	#[asset(path = "tl/intro.tl.ron")]
+	pub intro: Handle<Timeline>,
+	#[asset(path = "tl/area_1.tl.ron")]
+	pub area_1: Handle<Timeline>,
+}
 
 impl Plugin for TimeDataPlugin {
 	fn build(&self, app: &mut App) {

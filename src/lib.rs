@@ -13,7 +13,9 @@ use bevy::{prelude::*, reflect::TypeRegistryArc};
 use bevy_xpbd_3d::{plugins::PhysicsPlugins, prelude::Gravity};
 use data::DataPlugin;
 use std::sync::OnceLock;
+use bevy_asset_loader::prelude::*;
 use time_graph::TimeGraphPlugin;
+use crate::data::tl::Timelines;
 
 pub mod cam;
 pub mod data;
@@ -44,12 +46,21 @@ pub struct GamePlugin {
 
 impl Plugin for GamePlugin {
 	fn build(&self, app: &mut App) {
+		app
+			.init_state::<GameState>()
+			.add_loading_state(
+				LoadingState::new(GameState::Loading)
+					.continue_to_state(GameState::Running)
+					.load_collection::<Timelines>()
+			);
+
 		// Dependencies
 		app.add_plugins((
 			DefaultPlugins
 				.set(AssetPlugin {
 					file_path: self.asset_dir.to_owned(),
 					processed_file_path: self.imported_asset_dir.to_owned(),
+					mode: AssetMode::Unprocessed,
 					..default()
 				})
 				.set(WindowPlugin {
@@ -118,4 +129,12 @@ pub fn toggle_phys_gizmos(mut store: ResMut<GizmoConfigStore>, keys: Res<ButtonI
 		let (gizmos, _phys) = store.config_mut::<bevy_xpbd_3d::prelude::PhysicsGizmos>();
 		gizmos.enabled = !gizmos.enabled;
 	}
+}
+
+#[derive(States, Copy, Clone, Debug, Default, PartialEq, Eq, Hash)]
+pub enum GameState {
+	#[default]
+	Loading,
+	Running,
+	Paused,
 }

@@ -1,11 +1,8 @@
-use crate::{
-	data::{
-		cam::cam_node,
-		sprites::{LoadAtlas3d, LoadSprite3d},
-		LoadAlphaMode, LoadStdMat,
-	},
-	player::player_entity::WithPlayerEntity,
-};
+use crate::{data::{
+	cam::cam_node,
+	sprites::{LoadAtlas3d, LoadSprite3d},
+	LoadAlphaMode, LoadStdMat,
+}, GameState, player::player_entity::WithPlayerEntity};
 use bevy::prelude::*;
 use bevy_tnua::{
 	controller::{TnuaController, TnuaControllerPlugin},
@@ -35,7 +32,7 @@ impl Plugin for PlayerPlugin {
 			InputManagerPlugin::<Action>::default(),
 		))
 		.add_systems(Startup, spawn_player)
-		.add_systems(Update, (move_player, animate_player));
+		.add_systems(Update, (move_player.run_if(in_state(GameState::Running)), animate_player));
 	}
 }
 
@@ -161,7 +158,7 @@ pub fn move_player(
 			if let Ok(mut xform) = cam_q.get_single_mut() {
 				xform.rotation = xform.rotation.slerp(
 					Quat::from_rotation_z(-v.x.signum() * FRAC_PI_8 * 0.16),
-					t.delta_seconds(),
+					t.delta_seconds() * 2.0,
 				);
 			}
 		}

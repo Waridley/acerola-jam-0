@@ -98,7 +98,8 @@ pub fn setup(
 				HackablePanel,
 				LockedAxes::ALL_LOCKED,
 				RigidBody::Dynamic,
-				Collider::round_cuboid(0.8, 0.01, 0.8, 0.05),
+				Collider::round_cuboid(0.8, 0.001, 0.8, 0.05),
+				Restitution::new(0.9),
 				Resettable::new(move |id, world: &mut World| {
 					world.entity_mut(id).despawn();
 					world.spawn(panel_trigger());
@@ -295,11 +296,15 @@ pub struct HackablePanel;
 impl Command for OpenPanel {
 	fn apply(self, world: &mut World) {
 		let mut q =
-			world.query_filtered::<(&mut LockedAxes, &mut Transform), With<HackablePanel>>();
-		let (mut axes, mut xform) = q.single_mut(world);
+			world.query_filtered::<(&mut LockedAxes, &mut ExternalForce), With<HackablePanel>>();
+		let (mut axes, mut ext_force) = q.single_mut(world);
 		*axes = LockedAxes::new();
-		xform.translation.y -= 0.02;
-		xform.rotation *= Quat::from_rotation_x(-0.05);
+		ext_force.persistent = false;
+		ext_force.apply_force_at_point(
+			Vec3::X * 0.1,
+			Vec3::Z * 0.3,
+			Vec3::ZERO,
+		);
 
 		world.spawn((
 			Trigger {
@@ -334,8 +339,10 @@ pub struct IntroClock;
 
 impl Command for BreakClock {
 	fn apply(self, world: &mut World) {
-		let mut q = world.query_filtered::<&mut LockedAxes, With<IntroClock>>();
-		let mut clock = q.single_mut(world);
-		*clock = LockedAxes::new();
+		let mut q = world.query_filtered::<(&mut LockedAxes, &mut ExternalForce), With<IntroClock>>();
+		let (mut locked_axes, mut ext_force) = q.single_mut(world);
+		*locked_axes = LockedAxes::new();
+		ext_force.persistent = false;
+		ext_force.apply_force(Vec3::NEG_X * 2.0);
 	}
 }

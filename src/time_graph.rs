@@ -1,11 +1,8 @@
-use crate::{
-	data::{
-		tl::{Lifetime, LoopTime, PortalTo, SpawnedAt, TimeLoop, Timeline, Trigger, TriggerKind},
-		ui::{InteractSign, InteractText},
-		Str,
-	},
-	player::{player_entity::Root, Action},
-};
+use crate::{data::{
+	tl::{Lifetime, LoopTime, PortalTo, SpawnedAt, TimeLoop, Timeline, Trigger, TriggerKind},
+	ui::{InteractSign, InteractText},
+	Str,
+}, GameState, player::{player_entity::Root, Action}};
 use bevy::{prelude::*, utils::intern::Interned};
 use bevy_xpbd_3d::prelude::CollidingEntities;
 use leafwing_input_manager::prelude::ActionState;
@@ -17,8 +14,10 @@ pub struct TimeGraphPlugin;
 impl Plugin for TimeGraphPlugin {
 	fn build(&self, app: &mut App) {
 		app.add_systems(First, handle_lifetimes)
-			.add_systems(PreUpdate, (step_loop, take_portal))
-			.add_systems(PostUpdate, (print_timelines, check_triggers));
+			.add_systems(PreUpdate, (step_loop, take_portal)
+				.run_if(in_state(GameState::Running))
+			)
+			.add_systems(PostUpdate, (print_timelines, check_triggers.run_if(in_state(GameState::Running))));
 	}
 }
 

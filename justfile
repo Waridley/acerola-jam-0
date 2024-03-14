@@ -8,7 +8,10 @@ release-debug:
 	RUST_BACKTRACE=1 RUST_LOG="info,wgpu=warn,naga=warn,kairoi=debug,time_graph=debug" cargo run --package="kairoi-desktop" --profile="release-debug" --features="debugging"
 
 serve:
-	trunk serve --open --public-url="/" --features="debugging"
+	trunk serve --no-spa --open --public-url="/" --features="debugging"
+
+serve-release:
+	trunk serve --release --no-spa --open --public-url="/" --features="debugging"
 
 web:
 	RUST_BACKTRACE=1 trunk build --public-url="/" --features="debugging"
