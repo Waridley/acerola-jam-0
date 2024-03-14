@@ -1,12 +1,10 @@
-use crate::{
-	scn::{clock::ClockScene, intro::IntroPlugin},
-};
+use crate::scn::{clock::ClockPlugin, intro::IntroPlugin};
 use bevy::{
 	ecs::system::{EntityCommand, EntityCommands},
 	pbr::CascadeShadowConfigBuilder,
 	prelude::*,
 };
-use bevy_xpbd_3d::{prelude::Collider};
+use bevy_xpbd_3d::prelude::Collider;
 use serde::{Deserialize, Serialize};
 use sond_bevy_enum_components::reflect::AppEnumReflectExt;
 use std::f32::consts::FRAC_PI_6;
@@ -22,11 +20,7 @@ impl Plugin for EnvironmentPlugin {
 			.register_variant::<clock::hand::Minute>()
 			.register_type::<Resettable>()
 			.add_systems(Startup, setup)
-			.add_plugins(IntroPlugin);
-	}
-
-	fn finish(&self, app: &mut App) {
-		app.init_resource::<ClockScene>();
+			.add_plugins((IntroPlugin, ClockPlugin));
 	}
 }
 

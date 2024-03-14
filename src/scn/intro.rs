@@ -8,15 +8,11 @@ use crate::{
 	happens::TakeBranch,
 	scn::{clock::ClockScene, Resettable},
 };
-use bevy::{
-	ecs::system::{Command},
-	pbr::NotShadowCaster,
-	prelude::*,
-};
+use bevy::{ecs::system::Command, pbr::NotShadowCaster, prelude::*};
 use bevy_xpbd_3d::{
-	components::{*},
+	components::*,
 	parry::shape::SharedShape,
-	prelude::{Collider, Sensor, },
+	prelude::{Collider, Sensor},
 };
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
@@ -300,11 +296,7 @@ impl Command for OpenPanel {
 		let (mut axes, mut ext_force) = q.single_mut(world);
 		*axes = LockedAxes::new();
 		ext_force.persistent = false;
-		ext_force.apply_force_at_point(
-			Vec3::X * 0.1,
-			Vec3::Z * 0.3,
-			Vec3::ZERO,
-		);
+		ext_force.apply_force_at_point(Vec3::X * 0.1, Vec3::Z * 0.3, Vec3::ZERO);
 
 		world.spawn((
 			Trigger {
@@ -339,7 +331,8 @@ pub struct IntroClock;
 
 impl Command for BreakClock {
 	fn apply(self, world: &mut World) {
-		let mut q = world.query_filtered::<(&mut LockedAxes, &mut ExternalForce), With<IntroClock>>();
+		let mut q =
+			world.query_filtered::<(&mut LockedAxes, &mut ExternalForce), With<IntroClock>>();
 		let (mut locked_axes, mut ext_force) = q.single_mut(world);
 		*locked_axes = LockedAxes::new();
 		ext_force.persistent = false;

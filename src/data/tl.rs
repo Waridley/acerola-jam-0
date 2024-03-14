@@ -71,6 +71,8 @@ impl Plugin for TimeDataPlugin {
 		let area_1 = assets.load(area_path.clone());
 		app.insert_resource(TimeLoop {
 			curr: T(intro.id(), default()),
+			resetting_from: default(),
+			resetting_to: default(),
 		});
 		app.insert_resource(LoadedTimelines(
 			[(area_path, area_1), (intro_path, intro)].into(),
@@ -706,6 +708,8 @@ impl<'a, 'de> Visitor<'de> for HappeningsMapVisitor<'a> {
 #[derive(Resource, Debug, Reflect)]
 pub struct TimeLoop {
 	pub curr: T,
+	pub resetting_from: LoopTime,
+	pub resetting_to: LoopTime,
 }
 
 /// Mainly keeps timeline strong handles alive.

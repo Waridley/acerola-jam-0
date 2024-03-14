@@ -1,23 +1,36 @@
-use crate::{data::{
-	tl::{Lifetime, LoopTime, PortalTo, SpawnedAt, TimeLoop, Timeline, Trigger, TriggerKind},
-	ui::{InteractSign, InteractText},
-	Str,
-}, GameState, player::{player_entity::Root, Action}};
+use crate::{
+	data::{
+		tl::{Lifetime, LoopTime, PortalTo, SpawnedAt, TimeLoop, Timeline, Trigger, TriggerKind},
+		ui::{InteractSign, InteractText},
+		Str,
+	},
+	happens::reset_world,
+	player::{player_entity::Root, Action},
+	GameState,
+};
 use bevy::{prelude::*, utils::intern::Interned};
 use bevy_xpbd_3d::prelude::CollidingEntities;
 use leafwing_input_manager::prelude::ActionState;
 use sond_bevy_enum_components::WithVariant;
-use std::ops::Range;
+use std::{cmp::Ordering, f32::consts::TAU, ops::Range};
 
 pub struct TimeGraphPlugin;
 
 impl Plugin for TimeGraphPlugin {
 	fn build(&self, app: &mut App) {
 		app.add_systems(First, handle_lifetimes)
-			.add_systems(PreUpdate, (step_loop, take_portal)
-				.run_if(in_state(GameState::Running))
+			.add_systems(
+				PreUpdate,
+				(step_loop, take_portal).run_if(in_state(GameState::Running)),
 			)
-			.add_systems(PostUpdate, (print_timelines, check_triggers.run_if(in_state(GameState::Running))));
+			.add_systems(Update, seek.run_if(in_state(GameState::ResettingLoop)))
+			.add_systems(
+				PostUpdate,
+				(
+					print_timelines,
+					check_triggers.run_if(in_state(GameState::Running)),
+				),
+			);
 	}
 }
 
@@ -191,6 +204,58 @@ pub fn handle_lifetimes(
 	for (id, timestamp, lifetime) in &q {
 		if tl.curr.1 - timestamp.0 >= lifetime.0 {
 			cmds.entity(id).despawn_recursive();
+		}
+	}
+}
+
+pub fn seek(
+	mut cmds: Commands,
+	mut tloop: ResMut<TimeLoop>,
+	mut next_state: ResMut<NextState<GameState>>,
+	t: Res<Time>,
+) {
+	let dt = t.delta_seconds();
+	let TimeLoop {
+		ref mut curr,
+		resetting_from: from,
+		resetting_to: to,
+	} = *tloop;
+	let prev = curr.1;
+	match to.cmp(&from) {
+		Ordering::Less => {
+			let from_s = from.secs_f32();
+			let to_s = to.secs_f32();
+			let range = from_s - to_s;
+			let t = 1.0 - ((from_s - prev.secs_f32()) / range);
+			let speed = ((t - 0.5) * TAU).cos() * 0.5 + 0.5;
+			let dt = dt + (dt * speed * 8.0);
+			curr.1 -= LoopTime::from(dt);
+			if t < 0.4 && t + (dt / range) >= 0.4 {
+				cmds.add(reset_world);
+			}
+			if curr.1 <= to {
+				curr.1 = to;
+				next_state.set(GameState::Running);
+			}
+		}
+		Ordering::Greater => {
+			let from_s = from.secs_f32();
+			let to_s = to.secs_f32();
+			let range = to_s - from_s;
+			let t = (prev.secs_f32() - from_s) / range;
+			let speed = ((t - 0.5) * TAU).cos() * 0.5 + 0.5;
+			let dt = dt + (dt * speed * 8.0);
+			curr.1 += LoopTime::from(dt);
+			if t < 0.4 && t + (dt / range) >= 0.4 {
+				cmds.add(reset_world);
+			}
+			if curr.1 >= to {
+				curr.1 = to;
+				next_state.set(GameState::Running);
+			}
+		}
+		Ordering::Equal => {
+			warn!("to == from");
 		}
 	}
 }

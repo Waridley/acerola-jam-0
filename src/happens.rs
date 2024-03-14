@@ -9,6 +9,7 @@ use crate::{
 	},
 	player::player_entity::Root,
 	scn::Resettable,
+	GameState,
 };
 use bevy::{
 	asset::{AssetPath, UntypedAssetId},
@@ -307,20 +308,28 @@ pub struct ResetLoop {
 
 impl Command for ResetLoop {
 	fn apply(self, world: &mut World) {
-		let timelines = world.resource::<LoadedTimelines>();
-		let srv = world.resource::<AssetServer>();
-		for path in timelines.keys() {
-			srv.reload(path)
-		}
 		let mut tloop = world.resource_mut::<TimeLoop>();
-		tloop.curr.1 = self.to;
-		let mut q = world.query::<(Entity, &Resettable)>();
-		let mut queue = CommandQueue::default();
-		let mut cmds = Commands::new(&mut queue, &*world);
-		for (id, reset) in q.iter(world) {
-			let cmds = cmds.entity(id);
-			reset.defer_reset(cmds);
-		}
-		queue.apply(world);
+		let curr = tloop.curr.1;
+		tloop.resetting_from = curr;
+		tloop.resetting_to = self.to;
+		world
+			.resource_mut::<NextState<GameState>>()
+			.set(GameState::ResettingLoop)
 	}
+}
+
+pub fn reset_world(world: &mut World) {
+	let timelines = world.resource::<LoadedTimelines>();
+	let srv = world.resource::<AssetServer>();
+	for path in timelines.keys() {
+		srv.reload(path)
+	}
+	let mut q = world.query::<(Entity, &Resettable)>();
+	let mut queue = CommandQueue::default();
+	let mut cmds = Commands::new(&mut queue, &*world);
+	for (id, reset) in q.iter(world) {
+		let cmds = cmds.entity(id);
+		reset.defer_reset(cmds);
+	}
+	queue.apply(world);
 }

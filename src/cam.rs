@@ -45,22 +45,25 @@ impl Plugin for CamPlugin {
 
 pub fn setup(mut cmds: Commands) {
 	cmds.insert_resource(Msaa::Off);
-	cmds.spawn(TransformBundle::default())
+	cmds.spawn((TransformBundle::default(), VisibilityBundle::default()))
 		.with_enum(Anchor)
 		.with_children(|cmds| {
-			cmds.spawn(TransformBundle::from_transform(cam_resting_pos()))
-				.with_enum(Gimbal)
-				.with_children(|cmds| {
-					cmds.spawn((Camera3dBundle {
-						camera: Camera {
-							hdr: true,
-							clear_color: ClearColorConfig::Custom(Color::BLACK),
-							..default()
-						},
-						projection: Projection::Orthographic(ortho_projection()),
+			cmds.spawn((
+				TransformBundle::from_transform(cam_resting_pos()),
+				VisibilityBundle::default(),
+			))
+			.with_enum(Gimbal)
+			.with_children(|cmds| {
+				cmds.spawn((Camera3dBundle {
+					camera: Camera {
+						hdr: true,
+						clear_color: ClearColorConfig::Custom(Color::BLACK),
 						..default()
-					},));
-				});
+					},
+					projection: Projection::Orthographic(ortho_projection()),
+					..default()
+				},));
+			});
 		});
 }
 

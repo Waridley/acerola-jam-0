@@ -1,21 +1,17 @@
 use crate::{
 	cam::CamPlugin,
-	data::SystemRegistry,
+	data::{tl::Timelines, SystemRegistry},
 	happens::HappeningsPlugin,
 	player::PlayerPlugin,
-	scn::{
-		clock::{tick_hand},
-		EnvironmentPlugin,
-	},
+	scn::{clock::tick_hand, EnvironmentPlugin},
 	ui::GameUiPlugin,
 };
 use bevy::{prelude::*, reflect::TypeRegistryArc};
+use bevy_asset_loader::prelude::*;
 use bevy_xpbd_3d::{plugins::PhysicsPlugins, prelude::Gravity};
 use data::DataPlugin;
 use std::sync::OnceLock;
-use bevy_asset_loader::prelude::*;
 use time_graph::TimeGraphPlugin;
-use crate::data::tl::Timelines;
 
 pub mod cam;
 pub mod data;
@@ -24,6 +20,7 @@ pub mod player;
 pub mod scn;
 pub mod time_graph;
 pub mod ui;
+pub mod util;
 
 pub static TYPE_REGISTRY: OnceLock<TypeRegistryArc> = OnceLock::new();
 pub fn type_registry() -> &'static TypeRegistryArc {
@@ -46,13 +43,11 @@ pub struct GamePlugin {
 
 impl Plugin for GamePlugin {
 	fn build(&self, app: &mut App) {
-		app
-			.init_state::<GameState>()
-			.add_loading_state(
-				LoadingState::new(GameState::Loading)
-					.continue_to_state(GameState::Running)
-					.load_collection::<Timelines>()
-			);
+		app.init_state::<GameState>().add_loading_state(
+			LoadingState::new(GameState::Loading)
+				.continue_to_state(GameState::Running)
+				.load_collection::<Timelines>(),
+		);
 
 		// Dependencies
 		app.add_plugins((
@@ -136,5 +131,6 @@ pub enum GameState {
 	#[default]
 	Loading,
 	Running,
+	ResettingLoop,
 	Paused,
 }
